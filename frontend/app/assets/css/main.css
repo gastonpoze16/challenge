@@ -1,0 +1,10 @@
+/* SproutKit: https://github.com/tithely/sproutkit-vue#installation */
+@import "tailwindcss";
+@import "tailwindcss-primeui";
+@import "@tithely/sproutkit-vue/style.css";
+
+/* Ruta relativa obligatoria según el kit (desde app/assets/css → raíz del proyecto) */
+@source "../../../node_modules/@tithely/sproutkit-vue/dist/index.js";
+
+/* Páginas, layouts, componentes bajo app/ */
+@source "../..";
