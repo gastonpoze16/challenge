@@ -258,6 +258,77 @@
 - **Validación**: `PaymentEventType::codes()` con cache en Redis/archivo según `CACHE_STORE`; se invalida al guardar/borrar tipos. Usan esa lista `PaymentController::index` (filtros `event`/`status`) y `StorePaymentWebhookRequest` (webhook).
 - **Reembolso manual**: `ManualRefundPaymentService` bloquea si el tipo del pago actual tiene `is_refunded=true`; el campo `event` del payload interno usa el `code` de la fila marcada `is_refunded` (debe existir exactamente una para reembolsos).
 
+### 2026-04-10
+
+#### Paso 25 - Refactor de `index.vue`: extracción de composables
+- El archivo `frontend/app/pages/index.vue` tenía ~480 líneas mezclando lógica de filtros, data fetching, refund y template.
+- Se extrajo la lógica en composables y tipos reutilizables:
+  - `app/types/payment.ts`: tipos `PaymentRow`, `PaymentsMeta`, `PaymentsResponse`.
+  - `app/composables/usePaymentFilters.ts`: form reactivo de filtros, modelos de fecha, validación de currency, construcción del query string, paginación.
+  - `app/composables/usePaymentsList.ts`: `useAsyncData` para la lista, computed de `payments`/`meta`, suscripción WebSocket para auto-refresh.
+  - `app/composables/usePaymentRefund.ts`: acción de refund, estado de loading, banner de resultado, `canRefund`.
+- `index.vue` quedó en ~190 líneas: solo conecta composables y define el template.
+
+#### Paso 26 - Catálogo de eventos 100 % desde BD (sin fallbacks hardcodeados)
+- `usePaymentEventTypes` ahora es `async` con `await useAsyncData(...)`, asegurando que los datos estén disponibles en SSR antes del render.
+- Se eliminaron `FALLBACK_EVENT_LABELS` y el fallback `'payment.refunded'` en `isRefundedStatus`; toda la información viene de la API (`GET /api/payment-event-types`).
+- Se propagó `await` a los consumidores: `index.vue`, `payments/[paymentId].vue`, `usePaymentRefund.ts`.
+
+#### Paso 27 - Fix warnings de lifecycle hooks en async setup
+- `onMounted` y `onBeforeUnmount` en `usePaymentsList` estaban **después** del `await`, lo cual hace que Vue pierda el contexto de la instancia del componente.
+- Se movieron los hooks **antes** del `await`; `refreshFn` se declara como variable, los hooks la referencian vía closure, y tras el `await` se le asigna el `refresh` real.
+
+#### Paso 28 - Webhook solo encola, no procesa inline
+- **Objetivo**: el endpoint `POST /webhooks/payment` ya no procesa nada inline; solo valida, encola y devuelve `202 Accepted` inmediatamente.
+- **Controller** `PaymentWebhookController`: simplificado a `ProcessPaymentWebhookJob::dispatch($request->validated())` + `response 202`. Ya no inyecta `PaymentWebhookService`.
+- **Infraestructura**: `QUEUE_CONNECTION=database` ya estaba configurado; migración `create_jobs_table` (tablas `jobs`, `job_batches`, `failed_jobs`) ya existía.
+
+#### Paso 29 - Job/Worker procesa el evento desde la cola y persiste vía repositorio
+- **Job** `App\Jobs\ProcessPaymentWebhookJob` (`ShouldQueue`):
+  - Recibe el payload validado en el constructor (se serializa en la tabla `jobs`).
+  - En `handle()`, Laravel inyecta `PaymentWebhookService`; el job invoca `($service)($this->payload)`.
+  - `PaymentWebhookService` persiste vía `EventLogRepositoryInterface` → `EloquentEventLogRepository` y `PaymentRepositoryInterface` → `EloquentPaymentRepository` (misma lógica de idempotencia, upsert y broadcast WebSocket que antes).
+  - 5 reintentos con backoff progresivo (5s, 15s, 60s, 5min).
+  - `failed()` loguea si agota todos los intentos.
+- **Worker**: para procesar jobs encolados, correr `php artisan queue:work`.
+
+#### Paso 30 - Structured logging con queue context y retry count
+- Cada log del Job ahora incluye contexto de cola vía helper privado `queueContext()`: `attempt`, `max_tries`, `queue`, `job_id`, además de `event_id` y `payment_id`.
+- 3 puntos de log en el Job:
+  - `Log::info('ProcessPaymentWebhookJob starting', ...)` — al iniciar cada intento.
+  - `Log::info('ProcessPaymentWebhookJob completed', ...)` — tras procesamiento exitoso.
+  - `Log::error('ProcessPaymentWebhookJob failed permanently', ...)` — cuando agota todos los reintentos (incluye `exception`).
+- Esto se suma al structured logging existente en `PaymentWebhookService` (`Log::info` al recibir webhook, `Log::warning` en duplicados, `Log::info` en upsert exitoso).
+- Todos los logs corren dentro del worker (no en el endpoint HTTP), con datos clave-valor que permiten filtrar y monitorear en herramientas como ELK, CloudWatch, etc.
+
+#### Paso 31 - Mensajes del frontend en inglés
+- Se cambiaron todos los mensajes de usuario que estaban en español a inglés: errores de API, validaciones de filtros, banners de refund, empty state de la tabla, y mensaje de login fallido.
+
+#### Paso 32 - Rate limiting en el webhook endpoint
+- **Rate limiter** `webhook` definido en `AppServiceProvider::boot()`: 10000 requests por minuto por IP (`Limit::perMinute(10000)->by($request->ip())`).
+- Aplicado como middleware `throttle:webhook` en la ruta `POST /webhooks/payment` (`routes/api.php`).
+- Respuesta `429 Too Many Requests` con JSON consistente (`{ "message": "Too many requests. Please try again later." }`) y headers estándar (`Retry-After`, `X-RateLimit-*`) manejada en `bootstrap/app.php` vía `TooManyRequestsHttpException`.
+- Protege contra picos de tráfico: si un integrador envía más de 60 webhooks/minuto desde la misma IP, recibe 429 sin consumir recursos de cola ni base de datos.
+
+#### Paso 33 - Tests unitarios y de integración (backend)
+- Se crearon **8 archivos de test** en `backend/tests/Feature/` cubriendo todas las funcionalidades del backend:
+  - `WebhookEndpointTest` — endpoint devuelve 202, despacha job, validaciones (campos requeridos, event code inválido, currency, amount negativo), normalización de currency a mayúsculas.
+  - `ProcessPaymentWebhookJobTest` — job persiste payment y event_log, idempotencia, logging estructurado (start/complete/failed), configuración de retry y backoff.
+  - `PaymentWebhookServiceTest` — crea event_log y payment, duplicados no actualizan payment, upsert con nuevo evento, broadcast en evento nuevo (no en duplicado), excepción con event code desconocido, FK correcta a payment_event_types.
+  - `ManualRefundServiceTest` — refund cambia estado a refunded, refund de pago ya refunded lanza ValidationException, refund crea event_log.
+  - `PaymentControllerTest` — listado requiere auth, paginación, filtro por event, filtro por currency, solo muestra pagos propios, historial de eventos, 404 para pagos ajenos, validación de rango de fechas.
+  - `AuthControllerTest` — login con credenciales válidas e inválidas, validación de campos, /me con y sin token, logout revoca token.
+  - `AdminRefundEndpointTest` — requiere auth, 404 para pago inexistente, 404 para pago de otro usuario, refund exitoso, refund de pago ya refunded devuelve 422.
+  - `RepositoryTest` — upsert crea y actualiza, findByPaymentId, list con paginación y filtros, store de event_log, findByPaymentId de logs, existsForPaymentAndEventId.
+  - `PaymentEventTypeTest` — codes() devuelve todos los códigos, cache se invalida al crear, endpoint requiere auth, endpoint devuelve tipos.
+- Se eliminaron los `ExampleTest` por defecto.
+- **Configuración** (`phpunit.xml`): SQLite `:memory:`, `QUEUE_CONNECTION=sync`, `BROADCAST_CONNECTION=null`, `CACHE_STORE=array`.
+- **Ejecutar tests**:
+  ```bash
+  cd backend
+  php artisan test
+  ```
+
 ---
 
 > A partir de este punto, cada cambio nuevo se ira registrando aqui (incluida esta bitácora: **actualizar el README con cada tarea o entrega relevante**).

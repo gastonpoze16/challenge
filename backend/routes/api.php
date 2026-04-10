@@ -7,7 +7,8 @@ use App\Http\Controllers\Api\Payments\PaymentEventTypeController;
 use App\Http\Controllers\Api\Webhooks\PaymentWebhookController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/webhooks/payment', [PaymentWebhookController::class, 'store']);
+Route::post('/webhooks/payment', [PaymentWebhookController::class, 'store'])
+    ->middleware('throttle:webhook');
 
 Route::post('/login', [AuthController::class, 'login']);
 

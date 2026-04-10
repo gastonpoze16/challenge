@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Exception\JsonException as SymfonyJsonException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -61,6 +63,23 @@ return Application::configure(basePath: dirname(__DIR__))
                 'message' => 'Validation failed.',
                 'errors' => $e->errors(),
             ], $e->status);
+        });
+
+        $exceptions->renderable(function (TooManyRequestsHttpException $e, Request $request) use ($apiStyle) {
+            if (! $apiStyle($request)) {
+                return null;
+            }
+
+            Log::warning('Rate limit exceeded', [
+                'ip' => $request->ip(),
+                'path' => $request->path(),
+                'method' => $request->method(),
+                'retry_after' => $e->getHeaders()['Retry-After'] ?? null,
+            ]);
+
+            return response()->json([
+                'message' => 'Too many requests. Please try again later.',
+            ], 429)->withHeaders($e->getHeaders());
         });
 
         $exceptions->renderable(function (AuthenticationException $e, Request $request) use ($apiStyle) {
