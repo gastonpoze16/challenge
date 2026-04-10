@@ -329,6 +329,32 @@
   php artisan test
   ```
 
+#### Paso 34 - Refactor: trait compartido para tests backend
+- Se creó `tests/Helpers/PaymentTestHelper.php` con un trait que centraliza la creación de datos de test:
+  - `validWebhookPayload($overrides)` — payload de webhook con defaults y merge.
+  - `createPayment($overrides)` — crea `Payment` resolviendo el `payment_event_type_id` automáticamente desde el código de evento.
+  - `createAuthenticatedUser()` — crea `User`, token y headers de auth en una sola línea.
+- Se eliminaron métodos `createPayment()` y `authHeaders()` duplicados en 6 archivos de test.
+- Mismos 49 tests, mismas 125 assertions, significativamente menos líneas y sin duplicación.
+
+#### Paso 35 - Tests frontend (Vitest + @nuxt/test-utils)
+- **Setup**: Vitest con entorno `nuxt` + `happy-dom`, configurado en `vitest.config.ts`.
+- Se extrajeron las funciones puras `parseYmd`, `formatYmd`, `normalizeCurrencyQuery` de `usePaymentFilters` a `utils/paymentFiltersHelpers.ts` para testabilidad.
+- Se crearon **7 archivos de test** en `frontend/tests/`:
+  - `utils/apiError.test.ts` (10 tests) — extracción de mensajes de error, fallbacks, prioridad errors > message > statusMessage, ignorar "Unauthorized".
+  - `utils/formatPaymentDateTime.test.ts` (5 tests) — formateo de fechas ISO, strings inválidos, locale consistente en-US.
+  - `utils/paymentFiltersHelpers.test.ts` (14 tests) — parseYmd (formatos válidos/inválidos), formatYmd (padding, null), normalizeCurrencyQuery (uppercase, trim, validación 3 letras).
+  - `composables/usePaymentEventTypes.test.ts` (5 tests) — filterSelectOptions, toStatusLabel, isRefundedStatus con mocks de useAsyncData.
+  - `composables/usePaymentFilters.test.ts` (13 tests) — limit/page defaults y clamping, queryString, applyFilters con validación de currency, clearFilters, goToPage, onPaginatorPage.
+  - `composables/usePaymentRefund.test.ts` (6 tests) — canRefund para estados refunded/no-refunded, triggerRefund (skip refunded, API call, success/error banners).
+  - `composables/useAuth.test.ts` (8 tests) — authHeaders con/sin token, login/logout, fetchUser, manejo de errores.
+- **61 tests en total**, todos pasando.
+- **Ejecutar tests**:
+  ```bash
+  cd frontend
+  npm test
+  ```
+
 ---
 
 > A partir de este punto, cada cambio nuevo se ira registrando aqui (incluida esta bitácora: **actualizar el README con cada tarea o entrega relevante**).

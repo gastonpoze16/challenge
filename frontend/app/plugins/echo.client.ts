@@ -8,6 +8,11 @@ declare global {
 }
 
 export default defineNuxtPlugin(() => {
+  if (typeof window === 'undefined' || import.meta.env.VITEST) {
+    const noop = () => ({ listen: noop, leave: noop, channel: noop })
+    return { provide: { echo: { channel: noop, leave: noop } as any } }
+  }
+
   const config = useRuntimeConfig()
   window.Pusher = Pusher
   const echo = new Echo<'reverb'>({
@@ -18,7 +23,6 @@ export default defineNuxtPlugin(() => {
     wssPort: config.public.reverbPort,
     forceTLS: config.public.reverbScheme === 'https',
     enabledTransports: ['ws', 'wss'],
-    // Reverb (Pusher protocol): sin stats remotos; Echo ya fuerza cluster "" para broadcaster "reverb"
     disableStats: true
   })
 
