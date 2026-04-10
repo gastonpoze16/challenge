@@ -2,7 +2,7 @@ import type { Component } from 'vue'
 import * as SproutKit from '@tithely/sproutkit-vue'
 
 /**
- * Registra los componentes Sp* de SproutKit (instalación local file:, sin publicar en npm).
+ * Registers Sp* components from SproutKit (local file: install, not published to npm).
  */
 export default defineNuxtPlugin((nuxtApp) => {
   for (const [name, component] of Object.entries(SproutKit)) {

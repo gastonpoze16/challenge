@@ -1,7 +1,7 @@
 /**
  * Mensaje legible a partir de errores de $fetch / createError (401, 422, etc.).
  */
-export function getApiErrorMessage (e: unknown, fallback = 'No se pudo completar la operación.'): string {
+export function getApiErrorMessage (e: unknown, fallback = 'Could not complete the operation.'): string {
   if (!e || typeof e !== 'object') {
     return fallback
   }

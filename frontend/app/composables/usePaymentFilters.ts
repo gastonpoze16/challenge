@@ -92,7 +92,7 @@ export function usePaymentFilters () {
     if (cur.length > 0) {
       if (!/^[A-Za-z]{3}$/.test(cur)) {
         currencyFilterWarning.value =
-          'La moneda debe ser un código ISO de 3 letras (por ejemplo USD). Corrige o deja el campo vacío.'
+          'Currency must be a 3-letter ISO code (e.g. USD). Fix it or leave the field empty.'
         return
       }
       q.currency = cur.toUpperCase()

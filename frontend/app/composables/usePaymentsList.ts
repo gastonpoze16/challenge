@@ -38,7 +38,7 @@ export async function usePaymentsList (queryString: Ref<string>) {
           headers: authHeaders()
         })
       } catch (e: unknown) {
-        listLoadMessage.value = getApiErrorMessage(e, 'No se pudo cargar la lista.')
+        listLoadMessage.value = getApiErrorMessage(e, 'Could not load the payments list.')
         throw e
       }
     },

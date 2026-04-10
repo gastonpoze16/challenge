@@ -121,7 +121,7 @@ const {
             striped-rows
             size="small"
             table-style="min-width: 50rem"
-            empty-message="No hay pagos que coincidan."
+            empty-message="No matching payments found."
             class="payments-table"
           >
             <Column field="payment_id" header="Payment ID" style="min-width: 12rem">

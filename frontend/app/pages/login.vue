@@ -21,7 +21,7 @@ const submit = async () => {
   } catch (e: unknown) {
     errorMsg.value = getApiErrorMessage(
       e,
-      'Credenciales incorrectas o error de conexión. Revisá email y contraseña.'
+      'Invalid credentials or connection error. Please check your email and password.'
     )
   } finally {
     pending.value = false

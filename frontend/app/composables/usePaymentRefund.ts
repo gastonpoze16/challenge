@@ -24,12 +24,12 @@ export async function usePaymentRefund (
         method: 'POST',
         headers: authHeaders()
       })
-      refundBanner.value = { type: 'ok', text: 'Reembolso registrado (webhook interno).' }
+      refundBanner.value = { type: 'ok', text: 'Refund registered (internal webhook).' }
       await refresh()
     } catch (e: unknown) {
       refundBanner.value = {
         type: 'err',
-        text: getApiErrorMessage(e, 'No se pudo registrar el reembolso.')
+        text: getApiErrorMessage(e, 'Could not register the refund.')
       }
     } finally {
       refundingPaymentId.value = null
