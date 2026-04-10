@@ -1,30 +1,20 @@
-/vendor/
+# Monorepo (challenge/)
+.DS_Store
+Thumbs.db
+
+# IDEs / herramientas
+.idea/
+.vscode/
+.fleet/
+.zed/
+.phpactor.json
+.auth.json
+
+# Si alguna vez hay node en la raíz del repo
 node_modules/
 npm-debug.log
 yarn-error.log
+*.log
 
-# Laravel 4 specific
-bootstrap/compiled.php
-app/storage/
-
-# Laravel 5 & Lumen specific
-public/storage
-public/hot
-
-# Laravel 5 & Lumen specific with changed public path
-public_html/storage
-public_html/hot
-
-storage/*.key
-.env
-Homestead.yaml
-Homestead.json
-/.vagrant
+# Cachés que a veces aparecen en la raíz
 .phpunit.result.cache
-
-/public/build
-/storage/pail
-.env.backup
-.env.production
-.phpactor.json
-auth.json
