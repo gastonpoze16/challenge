@@ -3,6 +3,7 @@
 namespace App\Repositories\Eloquent;
 
 use App\Models\Payment;
+use App\Models\PaymentEventType;
 use App\Repositories\Contracts\PaymentRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
@@ -32,9 +33,12 @@ class EloquentPaymentRepository implements PaymentRepositoryInterface
         $query = Payment::query()->where('user_id', $filters['owner_user_id']);
 
         if (! empty($filters['event'])) {
-            $query->whereHas('eventType', function ($q) use ($filters): void {
-                $q->where('code', $filters['event']);
-            });
+            $typeId = PaymentEventType::where('code', $filters['event'])->value('id');
+            if ($typeId) {
+                $query->where('payment_event_type_id', $typeId);
+            } else {
+                $query->whereRaw('0 = 1');
+            }
         }
 
         if (! empty($filters['currency'])) {

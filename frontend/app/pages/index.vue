@@ -22,7 +22,13 @@ const {
 
 <template>
   <div class="page">
-    <h1 class="page-title">Payments Dashboard (Newest First)</h1>
+    <div class="page-header">
+      <h1 class="page-title">Payments Dashboard</h1>
+      <SpButton type="button" intent="primary" variant="outline" size="sm" @click="router.push('/payments/metrics')">
+        View Metrics
+      </SpButton>
+    </div>
+
     <Card>
       <template #content>
         <div class="filters-bar" role="region" aria-label="Filters">
@@ -194,8 +200,14 @@ const {
   padding: 1.25rem;
   font-family: Inter, system-ui, sans-serif;
 }
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
 .page-title {
-  margin: 0 0 1rem;
+  margin: 0;
   font-size: 1.5rem;
   font-weight: 600;
 }

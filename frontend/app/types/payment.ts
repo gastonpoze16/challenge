@@ -19,3 +19,26 @@ export type PaymentsResponse = {
   data: PaymentRow[]
   meta: PaymentsMeta
 }
+
+export type StatusMetric = {
+  event: string
+  label: string
+  count: number
+}
+
+export type DayMetric = {
+  date: string
+  count: number
+}
+
+export type CurrencyMetric = {
+  currency: string
+  count: number
+}
+
+export type MetricsResponse = {
+  total: number
+  by_status: StatusMetric[]
+  by_day: DayMetric[]
+  by_currency: CurrencyMetric[]
+}

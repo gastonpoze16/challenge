@@ -355,6 +355,46 @@
   npm test
   ```
 
+### Week 4 — Fullstack Track
+
+#### Paso 36 - DB indexes + optimización de queries (fs-6, fs-7)
+- **Migración** `2026_04_13_100000_add_performance_indexes`:
+  - `payments.updated_at` — usado en `ORDER BY` y filtros de rango de fechas.
+  - `payments.currency` — usado en filtro de moneda.
+  - `event_logs.timestamp` — usado en `ORDER BY` al listar historial de eventos.
+  - `event_logs.(payment_id, event_id)` — índice compuesto para el check de idempotencia (`existsForPaymentAndEventId`).
+- **Optimización de query**: el filtro por evento en `EloquentPaymentRepository::list()` usaba `whereHas('eventType', ...)` que genera un subquery correlacionado. Se reemplazó por resolución directa del `payment_event_type_id` via `PaymentEventType::where('code', ...)->value('id')` y filtro directo por FK — elimina el subquery, aprovecha el índice de la FK.
+- **Eager loading** ya existente en ambos repositorios (`with('eventType')`) — sin N+1.
+- 49 tests backend pasando sin regresiones.
+
+#### Paso 37 - GET /payments/metrics + dashboard con counters y charts (fs-1, fs-2)
+- **Backend**:
+  - Nuevo servicio invocable `PaymentMetricsService` que retorna:
+    - `total`: cantidad total de payments del usuario autenticado.
+    - `by_status`: array con conteo por cada tipo de evento (incluyendo tipos con count 0), ordenado por `sort_order`.
+    - `by_day`: array con conteo agrupado por día (`DATE(updated_at)`).
+    - `by_currency`: array con conteo agrupado por moneda, ordenado por cantidad descendente.
+  - Nuevo controller `PaymentMetricsController` en `Api/Payments/PaymentMetricsController.php`.
+  - Ruta `GET /payments/metrics` protegida por `auth:sanctum`.
+  - 7 tests en `PaymentMetricsEndpointTest`: requiere auth, total count, by status, by day, by currency, solo propios, vacío para usuario nuevo. **56 backend tests pasando.**
+- **Frontend**:
+  - Proxy Nitro `server/api/payment-metrics.get.ts`.
+  - Composable `usePaymentMetrics.ts`: fetch con `useAsyncData`, auto-refresh vía WebSocket (`payments` channel `.refresh`), computed para datos de charts.
+  - Tipos `StatusMetric`, `DayMetric`, `CurrencyMetric`, `MetricsResponse` en `types/payment.ts`.
+  - Dashboard (`index.vue`): sección de métricas arriba de la tabla con:
+    - **Counters**: card de total + card por cada status.
+    - **Doughnut chart**: distribución por status (PrimeVue Chart + chart.js).
+    - **Bar chart**: volumen de payments por día.
+    - **Doughnut chart**: distribución por moneda.
+  - Colores asignados dinámicamente por índice desde un palette genérico (escalable a nuevos tipos o monedas).
+  - Métricas se actualizan automáticamente con WebSocket (misma señal que la tabla).
+  - `chart.js` agregado como dependencia.
+- **Ejecutar tests**:
+  ```bash
+  cd backend && php artisan test    # 56 tests
+  cd frontend && npm test           # 61 tests
+  ```
+
 ---
 
 > A partir de este punto, cada cambio nuevo se ira registrando aqui (incluida esta bitácora: **actualizar el README con cada tarea o entrega relevante**).
