@@ -18,15 +18,42 @@ const {
 const {
   refundingPaymentId, refundBanner, canRefund, triggerRefund
 } = await usePaymentRefund(payments, refresh)
+
+const { authHeaders } = useAuth()
+const exporting = ref(false)
+
+async function exportCsv () {
+  exporting.value = true
+  try {
+    const csv = await $fetch<string>(`/api/payments/export?${queryString.value}`, {
+      headers: authHeaders(),
+      responseType: 'text'
+    })
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'payments.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  } finally {
+    exporting.value = false
+  }
+}
 </script>
 
 <template>
   <div class="page">
     <div class="page-header">
       <h1 class="page-title">Payments Dashboard</h1>
-      <SpButton type="button" intent="primary" variant="outline" size="sm" @click="router.push('/payments/metrics')">
-        View Metrics
-      </SpButton>
+      <div class="page-actions">
+        <SpButton type="button" intent="secondary" variant="outline" size="sm" :loading="exporting" @click="exportCsv">
+          Export CSV
+        </SpButton>
+        <SpButton type="button" intent="primary" variant="outline" size="sm" @click="router.push('/payments/metrics')">
+          View Metrics
+        </SpButton>
+      </div>
     </div>
 
     <Card>
@@ -210,6 +237,10 @@ const {
   margin: 0;
   font-size: 1.5rem;
   font-weight: 600;
+}
+.page-actions {
+  display: flex;
+  gap: 0.5rem;
 }
 .filters-bar {
   margin: -0.5rem 0 1rem;

@@ -395,6 +395,22 @@
   cd frontend && npm test           # 61 tests
   ```
 
+#### Paso 38 - CSV export con filtros activos (fs-5)
+- **Backend**:
+  - Nuevo método `listAll(filters)` en `PaymentRepositoryInterface` y `EloquentPaymentRepository`: misma lógica de filtros que `list()` pero sin paginación (retorna `Collection`). Se extrajo la lógica de filtros a `buildFilteredQuery()` para reutilizar entre ambos métodos.
+  - Nuevo servicio invocable `ExportPaymentsCsvService`: recibe filtros, obtiene todos los payments via repositorio, genera `StreamedResponse` con CSV (columnas: `payment_id`, `status`, `amount`, `currency`, `user_id`, `updated_at`).
+  - Nuevo controller `PaymentExportController` en `Api/Payments/PaymentExportController.php`.
+  - Ruta `GET /payments/export` protegida por `auth:sanctum`, acepta mismos query params de filtro que `GET /payments`.
+  - 5 tests en `PaymentExportTest`: requiere auth, retorna CSV con headers correctos, respeta filtro por event, por currency, solo propios. **61 backend tests pasando.**
+- **Frontend**:
+  - Proxy Nitro `server/api/payments/export.get.ts` que reenvía filtros y devuelve el CSV como texto.
+  - Botón **"Export CSV"** en el dashboard (`index.vue`): descarga el CSV respetando los filtros activos. Usa `$fetch` con `responseType: 'text'` + `Blob` + `URL.createObjectURL` para disparar la descarga.
+- **Ejecutar tests**:
+  ```bash
+  cd backend && php artisan test    # 61 tests
+  cd frontend && npm test           # 61 tests
+  ```
+
 ---
 
 > A partir de este punto, cada cambio nuevo se ira registrando aqui (incluida esta bitácora: **actualizar el README con cada tarea o entrega relevante**).

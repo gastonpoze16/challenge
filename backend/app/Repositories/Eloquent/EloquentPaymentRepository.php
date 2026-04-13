@@ -6,6 +6,8 @@ use App\Models\Payment;
 use App\Models\PaymentEventType;
 use App\Repositories\Contracts\PaymentRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 class EloquentPaymentRepository implements PaymentRepositoryInterface
 {
@@ -29,6 +31,17 @@ class EloquentPaymentRepository implements PaymentRepositoryInterface
     }
 
     public function list(int $perPage = 15, int $page = 1, array $filters = []): LengthAwarePaginator
+    {
+        return $this->buildFilteredQuery($filters)
+            ->paginate($perPage, ['*'], 'page', $page);
+    }
+
+    public function listAll(array $filters = []): Collection
+    {
+        return $this->buildFilteredQuery($filters)->get();
+    }
+
+    private function buildFilteredQuery(array $filters): Builder
     {
         $query = Payment::query()->where('user_id', $filters['owner_user_id']);
 
@@ -55,7 +68,6 @@ class EloquentPaymentRepository implements PaymentRepositoryInterface
 
         return $query
             ->with('eventType')
-            ->orderByDesc('updated_at')
-            ->paginate($perPage, ['*'], 'page', $page);
+            ->orderByDesc('updated_at');
     }
 }
