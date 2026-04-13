@@ -411,6 +411,34 @@
   cd frontend && npm test           # 61 tests
   ```
 
+#### Paso 39 - Benchmark de latencia del dashboard (fs-8)
+- **Comando** `php artisan app:benchmark` — seedea N payments, dispara M requests por endpoint y reporta avg/min/max/p95 en milisegundos.
+  - Opciones: `--payments=500`, `--requests=50`, `--base-url=http://127.0.0.1:8000`.
+  - Mide **GET** (lectura), **POST** (escritura webhook), y **Round-trip** (POST webhook → payment visible en GET, requiere `queue:work` corriendo).
+- **Resultados** (MySQL local, MacOS, `php artisan serve`, 500 payments, 20 requests/endpoint):
+
+| Endpoint | Avg (ms) | Min (ms) | Max (ms) | P95 (ms) |
+|---|---|---|---|---|
+| `GET /payments` (paginado) | 10.4 | 8.3 | 26.5 | 20.9 |
+| `GET /payments` (filtrado) | 13.8 | 10.2 | 27.3 | 24.3 |
+| `GET /payments/metrics` | 17.0 | 14.9 | 25.2 | 18.8 |
+| `GET /payments/export` (todos) | 97.6 | 93.9 | 104.1 | 101.0 |
+| `GET /payments/export` (filtrado) | 31.0 | 29.2 | 35.3 | 32.7 |
+| `POST /webhooks/payment` | 24.3 | 8.1 | 195.3 | 42.7 |
+| **Round-trip POST→GET** | **112.1** | 43.6 | 157.2 | **129.2** |
+
+- **Análisis**:
+  - Los endpoints GET paginados se mantienen **< 25ms p95** gracias a indexes y eager loading.
+  - `POST /webhooks/payment` promedia **24ms** porque solo valida, encola el job y devuelve `202 Accepted` — no bloquea.
+  - El **round-trip completo** (POST webhook → job procesado → payment persistido → visible en GET) tiene un **p95 de ~129ms**, confirmando que el flujo end-to-end está **muy por debajo del umbral de 2 segundos**.
+  - El export CSV sin filtros (~98ms) escala con la cantidad de datos; con filtros baja a ~31ms.
+- **Ejecutar benchmark** (requiere `php artisan serve` y `php artisan queue:work` activos en terminales separadas):
+  ```bash
+  cd backend
+  php artisan queue:work --sleep=0.1   # terminal 1
+  php artisan app:benchmark --payments=500 --requests=20  # terminal 2
+  ```
+
 ---
 
 > A partir de este punto, cada cambio nuevo se ira registrando aqui (incluida esta bitácora: **actualizar el README con cada tarea o entrega relevante**).
