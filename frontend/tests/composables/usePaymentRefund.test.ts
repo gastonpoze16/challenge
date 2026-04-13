@@ -1,15 +1,43 @@
 import { describe, it, expect, vi } from 'vitest'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
-import { MOCK_AUTH_RETURN, MOCK_EVENT_TYPES, createFetchMock, makePaymentRow } from '../helpers'
+import { MOCK_EVENT_TYPES, createFetchMock, makePaymentRow } from '../helpers'
 
-mockNuxtImport('useAuth', () => () => MOCK_AUTH_RETURN)
+const mockEventTypesStore = {
+  types: ref(MOCK_EVENT_TYPES),
+  loaded: ref(true),
+  fetch: vi.fn(),
+  filterSelectOptions: computed(() => []),
+  toStatusLabel: (v?: string | null) => v ?? '-',
+  isRefundedStatus: (v?: string | null) => {
+    if (!v) return false
+    return MOCK_EVENT_TYPES.some(t => t.code === v && t.is_refunded)
+  },
+}
 
-mockNuxtImport('useAsyncData', () => async () => ({
-  data: ref({ data: MOCK_EVENT_TYPES }),
-  pending: ref(false),
-  error: ref(null),
-  refresh: vi.fn(),
-}))
+mockNuxtImport('useEventTypesStore', () => () => mockEventTypesStore)
+
+const paymentsStore = reactive({
+  refundingPaymentId: null as string | null,
+  refundBanner: null as { type: 'ok' | 'err'; text: string } | null,
+  refund: vi.fn(),
+})
+
+paymentsStore.refund = vi.fn(async (paymentId: string) => {
+  paymentsStore.refundingPaymentId = paymentId
+  try {
+    await fetchMock(`/api/payments/${paymentId}/refund`, { method: 'POST' })
+    paymentsStore.refundBanner = { type: 'ok', text: 'Refund registered (internal webhook).' }
+  } catch (e: any) {
+    paymentsStore.refundBanner = {
+      type: 'err',
+      text: e?.data?.message ?? 'Could not register the refund.',
+    }
+  } finally {
+    paymentsStore.refundingPaymentId = null
+  }
+})
+
+mockNuxtImport('usePaymentsStore', () => () => paymentsStore)
 
 const fetchMock = createFetchMock()
 

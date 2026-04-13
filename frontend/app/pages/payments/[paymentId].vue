@@ -1,29 +1,18 @@
 <script setup lang="ts">
+import { paymentsApi } from '~/api/payments'
+
 definePageMeta({
   middleware: 'auth'
 })
 
-type EventRow = {
-  event_id: string
-  payment_id: string
-  event: string
-  amount: string | number
-  currency: string
-  received_at: string
-}
-
 const route = useRoute()
 const router = useRouter()
 const { toStatusLabel } = await usePaymentEventTypes()
-const { authHeaders } = useAuth()
 const paymentId = computed(() => String(route.params.paymentId ?? ''))
 
-const { data, pending, error } = await useAsyncData<{ data: EventRow[] }>(
+const { data, pending, error } = await useAsyncData(
   () => `payment-events-${paymentId.value}`,
-  () =>
-    $fetch(`/api/payments/${encodeURIComponent(paymentId.value)}/events`, {
-      headers: authHeaders()
-    }),
+  () => paymentsApi.events(paymentId.value),
   { watch: [paymentId] }
 )
 

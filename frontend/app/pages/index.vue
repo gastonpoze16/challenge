@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { paymentsApi } from '~/api/payments'
+
 definePageMeta({ middleware: 'auth' })
 
 const router = useRouter()
@@ -19,16 +21,12 @@ const {
   refundingPaymentId, refundBanner, canRefund, triggerRefund
 } = await usePaymentRefund(payments, refresh)
 
-const { authHeaders } = useAuth()
 const exporting = ref(false)
 
 async function exportCsv () {
   exporting.value = true
   try {
-    const csv = await $fetch<string>(`/api/payments/export?${queryString.value}`, {
-      headers: authHeaders(),
-      responseType: 'text'
-    })
+    const csv = await paymentsApi.exportCsv(queryString.value)
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')

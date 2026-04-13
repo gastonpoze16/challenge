@@ -1,5 +1,5 @@
 import { vi } from 'vitest'
-import type { PaymentEventTypeDto } from '~/composables/usePaymentEventTypes'
+import type { PaymentEventTypeDto } from '~/stores/eventTypes'
 import type { PaymentRow } from '~/types/payment'
 
 export const MOCK_EVENT_TYPES: PaymentEventTypeDto[] = [

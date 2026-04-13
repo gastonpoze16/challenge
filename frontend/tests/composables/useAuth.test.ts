@@ -3,17 +3,14 @@ import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { createFetchMock } from '../helpers'
 
 const tokenRef = ref<string | null>(null)
-const userRef = ref<any>(null)
 
 mockNuxtImport('useCookie', () => () => tokenRef)
-mockNuxtImport('useState', () => () => userRef)
 
 const fetchMock = createFetchMock()
 
 describe('useAuth', () => {
   beforeEach(() => {
     tokenRef.value = null
-    userRef.value = null
     fetchMock.mockClear()
   })
 
@@ -41,17 +38,16 @@ describe('useAuth', () => {
 
     await login('test@example.com', 'password123')
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/login', {
+    expect(fetchMock).toHaveBeenCalledWith('/api/login', expect.objectContaining({
       method: 'POST',
       body: { email: 'test@example.com', password: 'password123' },
-    })
+    }))
     expect(token.value).toBe('new-token')
     expect(user.value).toEqual({ id: 1, name: 'Test', email: 'test@example.com' })
   })
 
   it('logout clears token and user', async () => {
     tokenRef.value = 'existing-token'
-    userRef.value = { id: 1 }
     fetchMock.mockResolvedValueOnce({})
 
     const { useAuth } = await import('~/composables/useAuth')
@@ -65,7 +61,6 @@ describe('useAuth', () => {
 
   it('logout clears state even if API call fails', async () => {
     tokenRef.value = 'existing-token'
-    userRef.value = { id: 1 }
     fetchMock.mockRejectedValueOnce(new Error('Network error'))
 
     const { useAuth } = await import('~/composables/useAuth')
@@ -93,7 +88,6 @@ describe('useAuth', () => {
 
   it('fetchUser clears token and user on failure', async () => {
     tokenRef.value = 'expired-token'
-    userRef.value = { id: 1 }
     fetchMock.mockRejectedValueOnce(new Error('401'))
 
     const { useAuth } = await import('~/composables/useAuth')

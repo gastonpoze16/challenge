@@ -1,15 +1,27 @@
 import { describe, it, expect, vi } from 'vitest'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
-import { MOCK_AUTH_RETURN, MOCK_EVENT_TYPES } from '../helpers'
+import { MOCK_EVENT_TYPES } from '../helpers'
 
-mockNuxtImport('useAuth', () => () => MOCK_AUTH_RETURN)
+const mockStore = {
+  types: ref(MOCK_EVENT_TYPES),
+  loaded: ref(true),
+  fetch: vi.fn(),
+  filterSelectOptions: computed(() => [
+    { label: 'Any', value: '' },
+    ...MOCK_EVENT_TYPES.map(t => ({ label: t.label, value: t.code })),
+  ]),
+  toStatusLabel: (eventValue?: string | null) => {
+    if (!eventValue) return '-'
+    const row = MOCK_EVENT_TYPES.find(t => t.code === eventValue)
+    return row?.label ?? eventValue
+  },
+  isRefundedStatus: (eventValue?: string | null) => {
+    if (!eventValue) return false
+    return MOCK_EVENT_TYPES.some(t => t.code === eventValue && t.is_refunded)
+  },
+}
 
-mockNuxtImport('useAsyncData', () => async () => ({
-  data: ref({ data: MOCK_EVENT_TYPES }),
-  pending: ref(false),
-  error: ref(null),
-  refresh: vi.fn(),
-}))
+mockNuxtImport('useEventTypesStore', () => () => mockStore)
 
 describe('usePaymentEventTypes', () => {
   it('returns filterSelectOptions with "Any" first', async () => {

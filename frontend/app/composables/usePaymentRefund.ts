@@ -4,11 +4,8 @@ export async function usePaymentRefund (
   payments: Ref<PaymentRow[]>,
   refresh: () => Promise<void>
 ) {
-  const { authHeaders } = useAuth()
+  const store = usePaymentsStore()
   const { isRefundedStatus } = await usePaymentEventTypes()
-
-  const refundingPaymentId = ref<string | null>(null)
-  const refundBanner = ref<{ type: 'ok' | 'err'; text: string } | null>(null)
 
   const canRefund = (row: PaymentRow) => !isRefundedStatus(row.event)
 
@@ -17,28 +14,15 @@ export async function usePaymentRefund (
     if (row && isRefundedStatus(row.event)) {
       return
     }
-    refundBanner.value = null
-    refundingPaymentId.value = paymentId
-    try {
-      await $fetch(`/api/payments/${encodeURIComponent(paymentId)}/refund`, {
-        method: 'POST',
-        headers: authHeaders()
-      })
-      refundBanner.value = { type: 'ok', text: 'Refund registered (internal webhook).' }
+    await store.refund(paymentId)
+    if (store.refundBanner?.type === 'ok') {
       await refresh()
-    } catch (e: unknown) {
-      refundBanner.value = {
-        type: 'err',
-        text: getApiErrorMessage(e, 'Could not register the refund.')
-      }
-    } finally {
-      refundingPaymentId.value = null
     }
   }
 
   return {
-    refundingPaymentId,
-    refundBanner,
+    refundingPaymentId: toRef(store, 'refundingPaymentId'),
+    refundBanner: toRef(store, 'refundBanner'),
     canRefund,
     triggerRefund
   }

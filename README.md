@@ -441,4 +441,28 @@
 
 ---
 
+#### Paso 40 - Módulo API + Pinia stores en frontend
+- **Dependencias**: `@pinia/nuxt` y `pinia` instalados; módulo `@pinia/nuxt` registrado en `nuxt.config.ts`.
+- **Módulo API** (`app/api/`) — capa centralizada de llamadas HTTP tipadas que reemplaza `$fetch` sueltos:
+  - `client.ts`: wrappers `apiGet<T>()` y `apiPost<T>()` que inyectan `Authorization: Bearer <token>` automáticamente desde la cookie `auth_token`.
+  - `auth.ts`: `authApi.login()`, `.me()`, `.logout()`.
+  - `payments.ts`: `paymentsApi.list()`, `.events()`, `.refund()`, `.metrics()`, `.exportCsv()`.
+  - `eventTypes.ts`: `eventTypesApi.list()`.
+- **Pinia Stores** (`app/stores/`) — manejo de estado centralizado con persistencia:
+  - `auth.ts` (`useAuthStore`): `token` (cookie persistida 7 días), `user`, `isAuthenticated` + acciones `login`, `logout`, `fetchUser`.
+  - `payments.ts` (`usePaymentsStore`): `payments`, `meta`, `loading`, `error`, `refundBanner`, `refundingPaymentId` + acciones `fetchList`, `refund`.
+  - `eventTypes.ts` (`useEventTypesStore`): `types`, `loaded` + acción `fetch` + helpers `filterSelectOptions`, `toStatusLabel`, `isRefundedStatus`.
+  - `metrics.ts` (`useMetricsStore`): `total`, `byStatus`, `byDay`, `byCurrency`, `loading` + acción `fetch` + computeds `statusChartData`, `dailyChartData`, `currencyChartData`.
+- **Composables refactorizados** como thin wrappers sobre los stores (misma API pública, sin romper páginas):
+  - `useAuth` → delega a `useAuthStore`.
+  - `usePaymentEventTypes` → delega a `useEventTypesStore`.
+  - `usePaymentRefund` → delega a `usePaymentsStore` + `useEventTypesStore`.
+  - `usePaymentMetrics` → delega a `useMetricsStore`.
+  - `usePaymentsList` → usa `paymentsApi` directamente + sincroniza con `usePaymentsStore`.
+- **Páginas actualizadas**: `index.vue` y `payments/[paymentId].vue` usan `paymentsApi` del módulo API en vez de `$fetch` directo.
+- **Tests actualizados**: los mocks ahora apuntan a los stores en vez de `$fetch`/`useAsyncData` directo.
+- **Build exitoso + 61 frontend tests pasando, 61 backend tests pasando** (cero regresiones).
+
+---
+
 > A partir de este punto, cada cambio nuevo se ira registrando aqui (incluida esta bitácora: **actualizar el README con cada tarea o entrega relevante**).
