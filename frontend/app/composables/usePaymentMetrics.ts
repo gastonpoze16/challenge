@@ -3,14 +3,6 @@ export async function usePaymentMetrics () {
 
   await store.fetch()
 
-  const nuxtApp = useNuxtApp()
-
-  onMounted(() => {
-    nuxtApp.$echo.channel('payments').listen('.refresh', () => {
-      void store.fetch()
-    })
-  })
-
   return {
     total: computed(() => store.total),
     byStatus: computed(() => store.byStatus),

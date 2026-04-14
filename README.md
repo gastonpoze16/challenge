@@ -381,7 +381,7 @@
 - **Frontend**:
   - Proxy Nitro `server/api/payment-metrics.get.ts` hacia `GET /payments/metrics`.
   - `paymentsApi.metrics()` y `useMetricsStore.fetch()` sin query string.
-  - Composable `usePaymentMetrics.ts`: fetch de métricas, auto-refresh vía WebSocket (`payments` channel `.refresh`).
+  - Composable `usePaymentMetrics.ts`: fetch inicial de métricas al entrar a la página; sin suscripción WebSocket (la lista del dashboard sí se refresca en vivo).
   - Tipos `StatusMetric`, `DayMetric`, `CurrencyMetric`, `MetricsResponse` en `types/payment.ts`.
   - Dashboard (`index.vue`): sección de métricas arriba de la tabla con:
     - **Counters**: card de total + card por cada status.
