@@ -8,7 +8,7 @@ const { filterSelectOptions, toStatusLabel } = await usePaymentEventTypes()
 
 const {
   filterForm, dateFromModel, dateToModel,
-  currencyFilterWarning, queryString,
+  currencyFilterWarning, userIdFilterWarning, queryString,
   applyFilters, clearFilters, onPaginatorPage
 } = usePaymentFilters()
 
@@ -59,6 +59,18 @@ async function exportCsv () {
         <div class="filters-bar" role="region" aria-label="Filters">
           <div class="filters-toolbar-row">
             <div class="filters-grid">
+              <div class="field field-user-id">
+                <SpLabel>User ID (transaction)</SpLabel>
+                <SpInput
+                  v-model="filterForm.userId"
+                  type="text"
+                  inputmode="numeric"
+                  placeholder="Any"
+                  size="sm"
+                  intent="default"
+                  class="filter-control user-id-input"
+                />
+              </div>
               <div class="field">
                 <SpLabel>Status (event)</SpLabel>
                 <SpSelect
@@ -124,6 +136,10 @@ async function exportCsv () {
           {{ currencyFilterWarning }}
         </Message>
 
+        <Message v-if="userIdFilterWarning" severity="warn" :closable="false" class="stack-msg">
+          {{ userIdFilterWarning }}
+        </Message>
+
         <Message v-if="error" severity="error" :closable="false" class="stack-msg">
           {{ listLoadMessage || 'Failed to load payments.' }}
         </Message>
@@ -169,6 +185,7 @@ async function exportCsv () {
             </Column>
             <Column field="amount" header="Amount" />
             <Column field="currency" header="Currency" style="width: 6rem" />
+            <Column field="user_id" header="User ID" style="width: 6rem" />
             <Column header="Updated" style="min-width: 9rem">
               <template #body="{ data }">
                 <span class="cell-muted">{{ formatPaymentDateTime(data.updated_at) }}</span>
@@ -248,33 +265,51 @@ async function exportCsv () {
 }
 .filters-toolbar-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: flex-end;
-  column-gap: 1rem;
-  row-gap: 0.75rem;
+  gap: 0.75rem 1rem;
   width: 100%;
   box-sizing: border-box;
+  overflow-x: auto;
+  padding-bottom: 0.125rem;
+  scrollbar-gutter: stable;
 }
 .filters-grid {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1rem;
+  flex-wrap: nowrap;
+  gap: 0.5rem 0.65rem;
   align-items: flex-end;
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-width: 0;
 }
 .field {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  min-width: 10rem;
+  flex: 0 0 auto;
+  min-width: 0;
 }
-.field-currency { min-width: 7rem; }
-.filter-control { min-width: 10rem; }
-.currency-input { min-width: 5rem; max-width: 6rem; text-transform: uppercase; }
+.field.field-user-id {
+  flex: 0 0 6.5rem;
+}
+.field.field-currency {
+  flex: 0 0 4.75rem;
+}
+.filter-control { min-width: 0; width: 100%; }
+.user-id-input { max-width: 6.5rem; }
+.currency-input { max-width: 4.75rem; text-transform: uppercase; }
+.filters-grid > .field:nth-child(2) {
+  flex: 0 0 8.75rem;
+  min-width: 7.5rem;
+}
+.filters-grid > .field:nth-child(3),
+.filters-grid > .field:nth-child(4) {
+  flex: 0 0 8.5rem;
+  min-width: 7.25rem;
+}
 .filter-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.5rem;
   align-items: center;
   flex: 0 0 auto;

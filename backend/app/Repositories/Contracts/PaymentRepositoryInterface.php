@@ -13,12 +13,12 @@ interface PaymentRepositoryInterface
     public function findByPaymentId(string $paymentId): ?Payment;
 
     /**
-     * @param  array{owner_user_id: int, event?: string|null, date_from?: string|null, date_to?: string|null, currency?: string|null}  $filters
+     * @param  array{user_id?: int|null, event?: string|null, date_from?: string|null, date_to?: string|null, currency?: string|null}  $filters
      */
     public function list(int $perPage = 15, int $page = 1, array $filters = []): LengthAwarePaginator;
 
     /**
-     * @param  array{owner_user_id: int, event?: string|null, date_from?: string|null, date_to?: string|null, currency?: string|null}  $filters
+     * @param  array{user_id?: int|null, event?: string|null, date_from?: string|null, date_to?: string|null, currency?: string|null}  $filters
      */
     public function listAll(array $filters = []): Collection;
 }

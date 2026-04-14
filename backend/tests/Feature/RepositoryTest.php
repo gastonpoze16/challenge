@@ -93,8 +93,8 @@ class RepositoryTest extends TestCase
         $this->paymentRepo->upsert($this->paymentData(['payment_id' => 'pay_p1', 'user_id' => $user->id]));
         $this->paymentRepo->upsert($this->paymentData(['payment_id' => 'pay_p2', 'currency' => 'EUR', 'user_id' => $user->id, 'last_event_id' => 'evt_2']));
 
-        $this->assertEquals(2, $this->paymentRepo->list(10, 1, ['owner_user_id' => $user->id])->total());
-        $this->assertEquals(1, $this->paymentRepo->list(10, 1, ['owner_user_id' => $user->id, 'currency' => 'EUR'])->total());
+        $this->assertEquals(2, $this->paymentRepo->list(10, 1, ['user_id' => $user->id])->total());
+        $this->assertEquals(1, $this->paymentRepo->list(10, 1, ['user_id' => $user->id, 'currency' => 'EUR'])->total());
     }
 
     public function test_event_log_store(): void

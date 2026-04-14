@@ -19,6 +19,7 @@ class PaymentExportController extends Controller
         $eventRule = Rule::in(PaymentEventType::codes());
 
         $validated = $request->validate([
+            'user_id' => ['nullable', 'integer', 'min:1'],
             'event' => ['nullable', 'string', $eventRule],
             'status' => ['nullable', 'string', $eventRule],
             'date_from' => ['nullable', 'date'],
@@ -34,7 +35,7 @@ class PaymentExportController extends Controller
         }
 
         $filters = [
-            'owner_user_id' => (int) $request->user()->id,
+            'user_id' => isset($validated['user_id']) ? (int) $validated['user_id'] : null,
             'event' => $validated['event'] ?? $validated['status'] ?? null,
             'date_from' => $validated['date_from'] ?? null,
             'date_to' => $validated['date_to'] ?? null,

@@ -68,7 +68,7 @@ class PaymentExportTest extends TestCase
         $this->assertStringNotContains('p2', $csv);
     }
 
-    public function test_export_only_includes_own_payments(): void
+    public function test_export_without_user_filter_includes_all_payments(): void
     {
         $this->createPayment(['payment_id' => 'p1', 'user_id' => $this->user->id]);
 
@@ -77,7 +77,19 @@ class PaymentExportTest extends TestCase
 
         $csv = $this->get('/payments/export', $this->headers)->streamedContent();
         $this->assertStringContains('p1', $csv);
-        $this->assertStringNotContains('p2', $csv);
+        $this->assertStringContains('p2', $csv);
+    }
+
+    public function test_export_respects_user_id_filter(): void
+    {
+        $this->createPayment(['payment_id' => 'p1', 'user_id' => $this->user->id]);
+
+        $otherUser = \App\Models\User::factory()->create();
+        $this->createPayment(['payment_id' => 'p2', 'user_id' => $otherUser->id]);
+
+        $csv = $this->get('/payments/export?user_id='.$otherUser->id, $this->headers)->streamedContent();
+        $this->assertStringNotContains('p1', $csv);
+        $this->assertStringContains('p2', $csv);
     }
 
     private function assertStringContains(string $needle, string $haystack): void

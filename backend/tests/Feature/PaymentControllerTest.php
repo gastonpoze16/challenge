@@ -62,7 +62,7 @@ class PaymentControllerTest extends TestCase
             ->assertJsonPath('data.0.payment_id', 'pay_eur');
     }
 
-    public function test_list_payments_only_shows_own_payments(): void
+    public function test_list_payments_without_user_filter_shows_all(): void
     {
         $this->createPayment(['payment_id' => 'pay_mine']);
 
@@ -71,8 +71,19 @@ class PaymentControllerTest extends TestCase
 
         $this->getJson('/payments', $this->headers)
             ->assertStatus(200)
+            ->assertJsonPath('meta.total', 2);
+    }
+
+    public function test_list_payments_filters_by_transaction_user_id(): void
+    {
+        $otherUser = User::factory()->create();
+        $this->createPayment(['payment_id' => 'pay_mine']);
+        $this->createPayment(['payment_id' => 'pay_other', 'user_id' => $otherUser->id]);
+
+        $this->getJson('/payments?user_id='.$otherUser->id, $this->headers)
+            ->assertStatus(200)
             ->assertJsonPath('meta.total', 1)
-            ->assertJsonPath('data.0.payment_id', 'pay_mine');
+            ->assertJsonPath('data.0.payment_id', 'pay_other');
     }
 
     public function test_events_returns_event_history(): void
@@ -89,13 +100,14 @@ class PaymentControllerTest extends TestCase
             ->assertJsonCount(2, 'data');
     }
 
-    public function test_events_returns_404_for_other_users_payment(): void
+    public function test_events_returns_for_payment_regardless_of_transaction_user_id(): void
     {
         $otherUser = User::factory()->create();
         $this->createPayment(['payment_id' => 'pay_not_mine', 'user_id' => $otherUser->id]);
 
         $this->getJson('/payments/pay_not_mine/events', $this->headers)
-            ->assertStatus(404);
+            ->assertStatus(200)
+            ->assertJsonStructure(['data']);
     }
 
     public function test_date_range_validation(): void

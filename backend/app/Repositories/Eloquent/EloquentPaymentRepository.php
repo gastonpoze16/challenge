@@ -43,7 +43,11 @@ class EloquentPaymentRepository implements PaymentRepositoryInterface
 
     private function buildFilteredQuery(array $filters): Builder
     {
-        $query = Payment::query()->where('user_id', $filters['owner_user_id']);
+        $query = Payment::query();
+
+        if (! empty($filters['user_id'])) {
+            $query->where('user_id', (int) $filters['user_id']);
+        }
 
         if (! empty($filters['event'])) {
             $typeId = PaymentEventType::where('code', $filters['event'])->value('id');

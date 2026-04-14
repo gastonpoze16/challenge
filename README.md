@@ -122,6 +122,7 @@
 - El parámetro `{id}` es el `payment_id` de negocio (el mismo string que en webhooks), no el `id` autoincremental de la tabla.
 - Respuesta: todas las filas de `event_logs` para ese pago, ordenadas por `timestamp` ascendente (ya definido en `EloquentEventLogRepository::findByPaymentId`).
 - Respuesta JSON: `{ "data": [ ... ] }`
+- **404** solo si no existe ninguna fila en `payments` con ese `payment_id` (no se restringe por `payments.user_id` respecto al usuario de la sesión: el operador del dashboard puede auditar cualquier pago existente).
 
 #### Paso 12 - Errores HTTP 400 y 422 con JSON consistente
 - Se configuró `bootstrap/app.php` con manejadores para rutas de API (`webhooks/*`, `payments`, `payments/*`):
@@ -218,24 +219,24 @@
 - Si se abre en el navegador una ruta protegida (`GET /payments`, etc.) **sin token**, el middleware intentaba generar la URL de `login` y lanzaba `RouteNotFoundException` → **500** (Ignition) en lugar de **`401` JSON**.
 - En `bootstrap/app.php` → `withMiddleware` se sobrescribe con `redirectGuestsTo(fn () => null)` para que no se intente `route('login')` y el flujo llegue al `renderable` de `AuthenticationException` ya existente (`{ "message": "Unauthenticated." }`, 401).
 
-#### Paso 21 - Filtros en `GET /payments` (status/event, fechas, usuario, moneda)
+#### Paso 21 - Filtros en `GET /payments` (status/event, fechas, usuario de la transacción, moneda)
 - **Backend** (`PaymentController@index` → `ListPaymentsService` → `EloquentPaymentRepository::list`):
   - Query params opcionales:
-    - `event` o `status` (mismo significado): filtra por columna `payments.event`; valores permitidos alineados al webhook: `payment.created`, `payment.completed`, `payment.failed`, `payment.refunded`. Si se envían ambos, prevalece `event`.
+    - `event` o `status` (mismo significado): filtra por tipo de evento del pago (código alineado al webhook: `payment.created`, `payment.completed`, `payment.failed`, `payment.refunded`). Si se envían ambos, prevalece `event`.
     - `date_from` y `date_to`: rango inclusivo sobre `payments.updated_at` (comparación por fecha).
     - `currency`: código ISO de 3 letras; se normaliza a mayúsculas.
-  - La lista queda acotada al usuario autenticado (`payments.user_id` = `auth()->id()`); no hay query `user_id` en la API.
+    - **`user_id`**: entero opcional (`min:1`). Si está presente, filtra por **`payments.user_id`**, es decir el **usuario de la transacción** que viene en el payload del webhook, **no** el usuario autenticado que opera el dashboard. Si **no** se envía `user_id`, la lista incluye **todos** los pagos (siempre con sesión Sanctum válida).
   - Validación: si vienen ambas fechas, `date_to` no puede ser anterior a `date_from` (422 con mensaje claro).
   - Coexiste con la paginación existente (`limit`, `page`).
 - **Frontend**:
-  - `server/api/payments.get.ts`: reenvía al backend todos los query params anteriores además de `limit` y `page`.
-  - `app/pages/index.vue`: barra de filtros (select de estado/evento, fechas, moneda), botones **Apply** / **Clear**; la query de la ruta alimenta el `$fetch` y el cache key de `useAsyncData`.
+  - `server/api/payments.get.ts`: reenvía al backend todos los query params anteriores (incluido `user_id`) además de `limit` y `page`.
+  - `app/pages/index.vue`: barra de filtros (campo **User ID (transaction)**, select de estado/evento, fechas, moneda), botones **Apply** / **Clear**; la query de la ruta alimenta el `$fetch` y el cache key de `useAsyncData`. La tabla muestra la columna `user_id` del pago.
 
 #### Paso 22 - Admin: reembolso manual vía webhook interno (`payment.refunded`)
 - **Objetivo**: que un usuario autenticado pueda disparar el mismo procesamiento que `POST /webhooks/payment` con evento `payment.refunded`, sin exponer un HTTP público extra (se reutiliza `PaymentWebhookService`).
 - **Backend**:
   - `App\Services\ManualRefundPaymentService`: arma el payload (`event_id` único `refund-{uuid}`, `payment_id`, `event` = `payment.refunded`, `amount` / `currency` / `user_id` desde la fila `payments`, `timestamp` ISO) y llama al servicio del webhook.
-  - `App\Http\Controllers\Api\Admin\AdminPaymentRefundController`: `POST /admin/payments/{paymentId}/refund` (Sanctum), `{paymentId}` = `payment_id` de negocio; **404** si el pago no existe o no pertenece al usuario (`user_id` = sesión), alineado con lista y eventos.
+  - `App\Http\Controllers\Api\Admin\AdminPaymentRefundController`: `POST /admin/payments/{paymentId}/refund` (Sanctum), `{paymentId}` = `payment_id` de negocio; **404** solo si el pago no existe (el `user_id` de la fila es el de la transacción, no se compara con `auth()->id()`).
   - `bootstrap/app.php`: rutas `admin/*` incluidas en el estilo JSON de errores de API.
 - **Frontend**:
   - proxy Nitro `server/api/payments/[paymentId]/refund.post.ts` hacia el backend con `Authorization`.
@@ -370,16 +371,17 @@
 #### Paso 37 - GET /payments/metrics + dashboard con counters y charts (fs-1, fs-2)
 - **Backend**:
   - Nuevo servicio invocable `PaymentMetricsService` que retorna:
-    - `total`: cantidad total de payments del usuario autenticado.
+    - `total`: cantidad total de filas en `payments` (**todos** los pagos visibles para la herramienta; el filtro por `user_id` de transacción aplica solo en `GET /payments` y `GET /payments/export`).
     - `by_status`: array con conteo por cada tipo de evento (incluyendo tipos con count 0), ordenado por `sort_order`.
     - `by_day`: array con conteo agrupado por día (`DATE(updated_at)`).
     - `by_currency`: array con conteo agrupado por moneda, ordenado por cantidad descendente.
   - Nuevo controller `PaymentMetricsController` en `Api/Payments/PaymentMetricsController.php`.
-  - Ruta `GET /payments/metrics` protegida por `auth:sanctum`.
-  - 7 tests en `PaymentMetricsEndpointTest`: requiere auth, total count, by status, by day, by currency, solo propios, vacío para usuario nuevo. **56 backend tests pasando.**
+  - Ruta `GET /payments/metrics` protegida por `auth:sanctum` (sin query params de filtro).
+  - Tests en `PaymentMetricsEndpointTest`: auth, totales, by status/day/currency, alcance global, vacío sin datos.
 - **Frontend**:
-  - Proxy Nitro `server/api/payment-metrics.get.ts`.
-  - Composable `usePaymentMetrics.ts`: fetch con `useAsyncData`, auto-refresh vía WebSocket (`payments` channel `.refresh`), computed para datos de charts.
+  - Proxy Nitro `server/api/payment-metrics.get.ts` hacia `GET /payments/metrics`.
+  - `paymentsApi.metrics()` y `useMetricsStore.fetch()` sin query string.
+  - Composable `usePaymentMetrics.ts`: fetch de métricas, auto-refresh vía WebSocket (`payments` channel `.refresh`).
   - Tipos `StatusMetric`, `DayMetric`, `CurrencyMetric`, `MetricsResponse` en `types/payment.ts`.
   - Dashboard (`index.vue`): sección de métricas arriba de la tabla con:
     - **Counters**: card de total + card por cada status.
@@ -400,8 +402,8 @@
   - Nuevo método `listAll(filters)` en `PaymentRepositoryInterface` y `EloquentPaymentRepository`: misma lógica de filtros que `list()` pero sin paginación (retorna `Collection`). Se extrajo la lógica de filtros a `buildFilteredQuery()` para reutilizar entre ambos métodos.
   - Nuevo servicio invocable `ExportPaymentsCsvService`: recibe filtros, obtiene todos los payments via repositorio, genera `StreamedResponse` con CSV (columnas: `payment_id`, `status`, `amount`, `currency`, `user_id`, `updated_at`).
   - Nuevo controller `PaymentExportController` en `Api/Payments/PaymentExportController.php`.
-  - Ruta `GET /payments/export` protegida por `auth:sanctum`, acepta mismos query params de filtro que `GET /payments`.
-  - 5 tests en `PaymentExportTest`: requiere auth, retorna CSV con headers correctos, respeta filtro por event, por currency, solo propios. **61 backend tests pasando.**
+  - Ruta `GET /payments/export` protegida por `auth:sanctum`, acepta mismos query params de filtro que `GET /payments` (incluido `user_id` de transacción).
+  - Tests en `PaymentExportTest`: auth, CSV, filtros por event/currency, alcance global vs filtro `user_id`.
 - **Frontend**:
   - Proxy Nitro `server/api/payments/export.get.ts` que reenvía filtros y devuelve el CSV como texto.
   - Botón **"Export CSV"** en el dashboard (`index.vue`): descarga el CSV respetando los filtros activos. Usa `$fetch` con `responseType: 'text'` + `Blob` + `URL.createObjectURL` para disparar la descarga.

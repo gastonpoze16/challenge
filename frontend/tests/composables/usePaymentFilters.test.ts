@@ -76,6 +76,24 @@ describe('usePaymentFilters', () => {
     expect(params.has('currency')).toBe(false)
   })
 
+  it('queryString includes valid user_id', async () => {
+    mockQuery.value = { user_id: '42' }
+    const { usePaymentFilters } = await import('~/composables/usePaymentFilters')
+    const { queryString } = usePaymentFilters()
+
+    const params = new URLSearchParams(queryString.value)
+    expect(params.get('user_id')).toBe('42')
+  })
+
+  it('queryString omits invalid user_id', async () => {
+    mockQuery.value = { user_id: '0' }
+    const { usePaymentFilters } = await import('~/composables/usePaymentFilters')
+    const { queryString } = usePaymentFilters()
+
+    const params = new URLSearchParams(queryString.value)
+    expect(params.has('user_id')).toBe(false)
+  })
+
   it('applyFilters sets currency warning for invalid input', async () => {
     const { usePaymentFilters } = await import('~/composables/usePaymentFilters')
     const { filterForm, currencyFilterWarning, applyFilters } = usePaymentFilters()
@@ -108,6 +126,7 @@ describe('usePaymentFilters', () => {
     const { usePaymentFilters } = await import('~/composables/usePaymentFilters')
     const { filterForm, dateFromModel, dateToModel, clearFilters } = usePaymentFilters()
 
+    filterForm.userId = '99'
     filterForm.event = 'payment.created'
     filterForm.currency = 'EUR'
     dateFromModel.value = new Date()
@@ -115,6 +134,7 @@ describe('usePaymentFilters', () => {
 
     await clearFilters()
 
+    expect(filterForm.userId).toBe('')
     expect(filterForm.event).toBe('')
     expect(filterForm.currency).toBe('')
     expect(dateFromModel.value).toBeNull()

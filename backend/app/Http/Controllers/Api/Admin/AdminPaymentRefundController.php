@@ -23,7 +23,6 @@ class AdminPaymentRefundController extends Controller
     {
         $payment = Payment::query()
             ->where('payment_id', $paymentId)
-            ->where('user_id', $request->user()->id)
             ->first();
 
         if (! $payment) {

@@ -17,10 +17,12 @@ export function usePaymentFilters () {
   })
 
   const currencyFilterWarning = ref('')
+  const userIdFilterWarning = ref('')
   const dateFromModel = ref<Date | null>(null)
   const dateToModel = ref<Date | null>(null)
 
   const filterForm = reactive({
+    userId: '',
     event: '',
     currency: ''
   })
@@ -28,6 +30,7 @@ export function usePaymentFilters () {
   watch(
     () => route.query,
     (q) => {
+      filterForm.userId = (q.user_id as string) || ''
       filterForm.event = (q.event as string) || (q.status as string) || ''
       filterForm.currency = (q.currency as string) || ''
       dateFromModel.value = parseYmd((q.date_from as string) || '')
@@ -36,7 +39,7 @@ export function usePaymentFilters () {
     { immediate: true }
   )
 
-  const filterKeys = ['event', 'status', 'date_from', 'date_to', 'currency'] as const
+  const filterKeys = ['user_id', 'event', 'status', 'date_from', 'date_to', 'currency'] as const
 
   const queryString = computed(() => {
     const params = new URLSearchParams()
@@ -52,6 +55,11 @@ export function usePaymentFilters () {
         if (c) params.set('currency', c)
         continue
       }
+      if (key === 'user_id') {
+        const t = String(s).trim()
+        if (/^\d+$/.test(t) && Number(t) >= 1) params.set('user_id', t)
+        continue
+      }
       params.set(key, String(s))
     }
     return params.toString()
@@ -59,9 +67,19 @@ export function usePaymentFilters () {
 
   const applyFilters = async () => {
     currencyFilterWarning.value = ''
+    userIdFilterWarning.value = ''
     const q: Record<string, string> = {
       page: '1',
       limit: String(limit.value)
+    }
+    const uid = filterForm.userId.trim()
+    if (uid.length > 0) {
+      if (!/^\d+$/.test(uid) || Number(uid) < 1) {
+        userIdFilterWarning.value =
+          'User ID must be a positive integer (matches payments.user_id), or leave the field empty.'
+        return
+      }
+      q.user_id = uid
     }
     if (filterForm.event) q.event = filterForm.event
     const df = formatYmd(dateFromModel.value)
@@ -84,6 +102,8 @@ export function usePaymentFilters () {
 
   const clearFilters = async () => {
     currencyFilterWarning.value = ''
+    userIdFilterWarning.value = ''
+    filterForm.userId = ''
     filterForm.event = ''
     filterForm.currency = ''
     dateFromModel.value = null
@@ -112,6 +132,7 @@ export function usePaymentFilters () {
     dateFromModel,
     dateToModel,
     currencyFilterWarning,
+    userIdFilterWarning,
     queryString,
     applyFilters,
     clearFilters,

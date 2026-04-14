@@ -11,9 +11,9 @@ class PaymentMetricsService
     /**
      * @return array{total: int, by_status: list<array{event: string, label: string, count: int}>, by_day: list<array{date: string, count: int}>, by_currency: list<array{currency: string, count: int}>}
      */
-    public function __invoke(int $userId): array
+    public function __invoke(): array
     {
-        $baseQuery = Payment::where('user_id', $userId);
+        $baseQuery = Payment::query();
 
         $total = (clone $baseQuery)->count();
 

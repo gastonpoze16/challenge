@@ -35,13 +35,14 @@ class AdminRefundEndpointTest extends TestCase
             ->assertStatus(404);
     }
 
-    public function test_refund_returns_404_for_other_users_payment(): void
+    public function test_refund_succeeds_for_payment_with_different_transaction_user_id(): void
     {
         $otherUser = User::factory()->create();
         $this->createPayment(['payment_id' => 'pay_other', 'user_id' => $otherUser->id]);
 
         $this->postJson('/admin/payments/pay_other/refund', [], $this->headers)
-            ->assertStatus(404);
+            ->assertStatus(200)
+            ->assertJsonPath('message', 'Refund webhook processed.');
     }
 
     public function test_refund_succeeds_for_completed_payment(): void

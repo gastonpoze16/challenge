@@ -6,6 +6,7 @@ export default defineEventHandler(async (event) => {
   const passthrough = [
     'limit',
     'page',
+    'user_id',
     'event',
     'status',
     'date_from',

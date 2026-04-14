@@ -86,7 +86,7 @@ class PaymentMetricsEndpointTest extends TestCase
         $this->assertContains('EUR', $currencies);
     }
 
-    public function test_metrics_only_includes_own_payments(): void
+    public function test_metrics_includes_all_payments(): void
     {
         $this->createPayment(['payment_id' => 'p1', 'user_id' => $this->user->id]);
 
@@ -96,7 +96,7 @@ class PaymentMetricsEndpointTest extends TestCase
         $response = $this->getJson('/payments/metrics', $this->headers);
 
         $response->assertOk()
-            ->assertJsonPath('total', 1);
+            ->assertJsonPath('total', 2);
     }
 
     public function test_metrics_empty_for_new_user(): void

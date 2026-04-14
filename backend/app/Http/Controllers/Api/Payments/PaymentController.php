@@ -26,6 +26,7 @@ class PaymentController extends Controller
         $validated = $request->validate([
             'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
             'page' => ['nullable', 'integer', 'min:1'],
+            'user_id' => ['nullable', 'integer', 'min:1'],
             'event' => ['nullable', 'string', $eventRule],
             'status' => ['nullable', 'string', $eventRule],
             'date_from' => ['nullable', 'date'],
@@ -46,7 +47,7 @@ class PaymentController extends Controller
         $eventFilter = $validated['event'] ?? $validated['status'] ?? null;
 
         $filters = [
-            'owner_user_id' => (int) $request->user()->id,
+            'user_id' => isset($validated['user_id']) ? (int) $validated['user_id'] : null,
             'event' => $eventFilter,
             'date_from' => $validated['date_from'] ?? null,
             'date_to' => $validated['date_to'] ?? null,
@@ -71,14 +72,9 @@ class PaymentController extends Controller
     /**
      * @param  string  $id  Business payment_id (not DB primary key)
      */
-    public function events(Request $request, string $id): JsonResponse
+    public function events(string $id): JsonResponse
     {
-        $owned = Payment::query()
-            ->where('payment_id', $id)
-            ->where('user_id', $request->user()->id)
-            ->exists();
-
-        if (! $owned) {
+        if (! Payment::query()->where('payment_id', $id)->exists()) {
             abort(404);
         }
 
