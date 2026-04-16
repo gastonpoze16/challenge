@@ -171,9 +171,15 @@ async function exportCsv () {
             empty-message="No matching payments found."
             class="payments-table"
           >
-            <Column field="payment_id" header="Payment ID" style="min-width: 12rem">
+            <Column
+              field="payment_id"
+              header="Payment ID"
+              class="payment-id-column"
+              body-class="payment-id-cell"
+              style="width: 12rem; max-width: 12rem"
+            >
               <template #body="{ data }">
-                <strong>{{ data.payment_id }}</strong>
+                <strong class="payment-id-text" :title="data.payment_id">{{ data.payment_id }}</strong>
               </template>
             </Column>
             <Column header="Status" style="min-width: 8rem">
@@ -317,7 +323,20 @@ async function exportCsv () {
 }
 .stack-msg { margin: 0 0 0.75rem; }
 .meta-line :deep(.p-message-text) { font-size: 0.9rem; }
-.payments-table { margin-top: 0.25rem; }
+.payments-table { margin-top: 0.25rem; table-layout: fixed; }
+.payments-table :deep(.payment-id-cell) {
+  max-width: 12rem;
+  overflow: hidden;
+  vertical-align: middle;
+}
+.payment-id-text {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
 .cell-muted { color: var(--p-text-muted-color, #6b7280); font-size: 0.88rem; }
 .action-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
 .pager { margin-top: 1rem; border: 0; background: transparent; }

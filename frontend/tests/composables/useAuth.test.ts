@@ -38,7 +38,7 @@ describe('useAuth', () => {
 
     await login('test@example.com', 'password123')
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/login', expect.objectContaining({
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/login', expect.objectContaining({
       method: 'POST',
       body: { email: 'test@example.com', password: 'password123' },
     }))

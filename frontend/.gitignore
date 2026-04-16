@@ -9,6 +9,9 @@ dist
 # Node dependencies
 node_modules
 
+# Copiá aquí sproutkit (file:./vendor/sproutkit-vue en package.json); no commitear el paquete.
+vendor/sproutkit-vue
+
 # Logs
 logs
 *.log

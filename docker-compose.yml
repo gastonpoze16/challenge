@@ -1,0 +1,139 @@
+# Laravel API + MySQL + queue worker + Reverb (desarrollo local).
+# MySQL: root sin contraseña (solo local). Si cambiaste la BD antes, recreá el volumen.
+#
+# Uso:
+#   cp docker/compose.env.example .env.compose   # opcional (valores por defecto sirven sin esto)
+#   docker compose --env-file .env.compose up --build
+#   docker compose exec app php artisan migrate    # primera vez
+#
+# API:     http://127.0.0.1:8000
+# MySQL:   127.0.0.1:3307 (host) → contenedor mysql:3306
+# Reverb: 127.0.0.1:8081
+# Front:   http://127.0.0.1:3000 (servicio frontend) o npm run dev en ./frontend
+#
+# SproutKit: copiá el paquete a frontend/vendor/sproutkit-vue (ver frontend/package.json).
+
+name: challenge
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: challenge-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: "${DB_DATABASE:-challenge}"
+    ports:
+      - "${MYSQL_PUBLISH_PORT:-3307}:3306"
+    volumes:
+      - challenge_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 25s
+
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: challenge-app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./backend:/var/www/html
+    ports:
+      - "${APP_PUBLISH_PORT:-8000}:8000"
+    environment: &laravel-env
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: "${APP_URL:-http://127.0.0.1:8000}"
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: "${DB_DATABASE:-challenge}"
+      DB_USERNAME: "${DB_USERNAME:-root}"
+      DB_PASSWORD: "${DB_PASSWORD:-}"
+      BROADCAST_CONNECTION: reverb
+      REVERB_APP_ID: "${REVERB_APP_ID:-1001}"
+      REVERB_APP_KEY: "${REVERB_APP_KEY:-challenge-local-key}"
+      REVERB_APP_SECRET: "${REVERB_APP_SECRET:-challenge-local-secret}"
+      # Desde PHP (broadcast hacia el servidor Reverb en la red Docker)
+      REVERB_HOST: reverb
+      REVERB_PORT: 8081
+      REVERB_SCHEME: http
+      REVERB_SERVER_HOST: 0.0.0.0
+      REVERB_SERVER_PORT: 8081
+      QUEUE_CONNECTION: database
+      CACHE_STORE: database
+      SESSION_DRIVER: database
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+
+  queue:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: challenge-queue
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./backend:/var/www/html
+    environment:
+      <<: *laravel-env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      app:
+        condition: service_started
+    command: ["php", "artisan", "queue:work", "--sleep=1", "--tries=3", "--timeout=120"]
+
+  reverb:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: challenge-reverb
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./backend:/var/www/html
+    ports:
+      - "${REVERB_PUBLISH_PORT:-8081}:8081"
+    environment:
+      <<: *laravel-env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      app:
+        condition: service_started
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8081"]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: challenge-frontend
+    restart: unless-stopped
+    working_dir: /app
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${FRONT_PUBLISH_PORT:-3000}:3000"
+    environment:
+      # Una sola URL para navegador y Nitro: el API publicado en el host (Linux/Mac Docker).
+      NUXT_PUBLIC_API_BASE: http://host.docker.internal:${APP_PUBLISH_PORT:-8000}
+      NUXT_PUBLIC_REVERB_APP_KEY: "${REVERB_APP_KEY:-challenge-local-key}"
+      NUXT_PUBLIC_REVERB_HOST: 127.0.0.1
+      NUXT_PUBLIC_REVERB_PORT: "${REVERB_PUBLISH_PORT:-8081}"
+      NUXT_PUBLIC_REVERB_SCHEME: http
+    volumes:
+      - ./frontend:/app
+    depends_on:
+      app:
+        condition: service_started
+
+volumes:
+  challenge_mysql_data:

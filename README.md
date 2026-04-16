@@ -467,4 +467,19 @@
 
 ---
 
+### Docker (backend + MySQL + cola + Reverb)
+
+- Archivos: `docker-compose.yml` (raíz), `backend/Dockerfile`, `backend/docker-entrypoint.sh`, `docker/compose.env.example`.
+- Servicios: **mysql** (puerto host **3307** por defecto para no chocar con MySQL local), **app** (`php artisan serve` → **8000**), **queue** (`queue:work`), **reverb** (**8081**).
+- Variables de entorno del stack se inyectan en Compose (sobrescriben `DB_HOST`, `REVERB_HOST`, etc. respecto al `.env` del host para la red Docker).
+- Arranque:
+  ```bash
+  cp docker/compose.env.example .env.compose   # opcional
+  docker compose --env-file .env.compose up --build
+  docker compose exec app php artisan migrate
+  ```
+- El **frontend Nuxt** sigue en el host: `cd frontend && npm run dev`, con `NUXT_PUBLIC_API_BASE=http://127.0.0.1:8000` y Reverb en `127.0.0.1:8081` (mismas claves `REVERB_APP_KEY` que en Compose / `.env.compose`).
+
+---
+
 > A partir de este punto, cada cambio nuevo se ira registrando aqui (incluida esta bitácora: **actualizar el README con cada tarea o entrega relevante**).

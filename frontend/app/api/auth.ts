@@ -6,7 +6,7 @@ type MeResponse = { user: AuthUser }
 
 export const authApi = {
   login: (email: string, password: string) =>
-    apiPost<LoginResponse>('/api/login', { email, password }),
+    apiPost<LoginResponse>('/api/auth/login', { email, password }),
 
   me: () =>
     apiGet<MeResponse>('/api/me'),
