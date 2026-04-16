@@ -4,7 +4,8 @@
 .nuxt
 .nitro
 .cache
-dist
+# Solo la carpeta dist en la raíz del frontend (no `**/dist`, o git ignora el stub de CI).
+/dist
 
 # Node dependencies
 node_modules
