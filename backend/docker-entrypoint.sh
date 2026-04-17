@@ -7,6 +7,31 @@ if [ ! -f vendor/autoload.php ]; then
   composer install --no-interaction --prefer-dist
 fi
 
+# Compose suele exportar DB_HOST=mysql; en EC2 el RDS va en .env. Si el entorno es vacío o "mysql",
+# tomar DB_HOST (y DB_PORT si falta) del archivo .env.
+_from_file_host=
+_from_file_port=
+if [ -f .env ]; then
+  _from_file_host=$(grep -E '^DB_HOST=' .env 2>/dev/null | tail -1 | cut -d= -f2- || true)
+  _from_file_host=$(printf '%s' "$_from_file_host" | sed "s/^[\"']//;s/[\"']$//" | tr -d '\r')
+  _from_file_port=$(grep -E '^DB_PORT=' .env 2>/dev/null | tail -1 | cut -d= -f2- || true)
+  _from_file_port=$(printf '%s' "$_from_file_port" | sed "s/^[\"']//;s/[\"']$//" | tr -d '\r')
+fi
+
+case "${DB_HOST:-}" in
+  ''|mysql)
+    if [ -n "$_from_file_host" ]; then
+      DB_HOST="$_from_file_host"
+    fi
+    ;;
+esac
+
+if [ -z "${DB_PORT:-}" ] && [ -n "$_from_file_port" ]; then
+  DB_PORT="$_from_file_port"
+fi
+
+unset _from_file_host _from_file_port
+
 DB_HOST="${DB_HOST:-mysql}"
 DB_PORT="${DB_PORT:-3306}"
 
