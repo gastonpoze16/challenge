@@ -60,7 +60,7 @@ async function exportCsv () {
           <div class="filters-toolbar-row">
             <div class="filters-grid">
               <div class="field field-user-id">
-                <SpLabel>User ID (transaction)</SpLabel>
+                <SpLabel>User ID</SpLabel>
                 <SpInput
                   v-model="filterForm.userId"
                   type="text"
