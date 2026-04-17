@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
 
 jobs:
   backend:
@@ -68,3 +68,66 @@ jobs:
 
       - name: Run tests
         run: npm run test
+
+  deploy-backend:
+    name: Deploy backend (EC2)
+    needs: [backend, frontend]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy over SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          HOST: ${{ vars.DEPLOY_BACKEND_HOST }}
+          USER: ${{ vars.DEPLOY_BACKEND_USER }}
+          ROOT: ${{ vars.DEPLOY_CHALLENGE_ROOT }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SSH_KEY:-}" ] || [ -z "${HOST:-}" ] || [ -z "${USER:-}" ] || [ -z "${ROOT:-}" ]; then
+            echo "::notice::CD omitido: configura secret DEPLOY_SSH_PRIVATE_KEY y vars DEPLOY_BACKEND_HOST, DEPLOY_BACKEND_USER, DEPLOY_CHALLENGE_ROOT"
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new \
+            "${USER}@${HOST}" \
+            "export CHALLENGE_ROOT=$(printf '%q' "$ROOT") DEPLOY_BRANCH=$(printf '%q' "$BRANCH"); bash -s" \
+            < scripts/ec2/deploy-backend.sh
+
+  deploy-frontend:
+    name: Deploy frontend (EC2)
+    needs: [backend, frontend]
+    if: >
+      github.event_name == 'push'
+      && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      && vars.DEPLOY_FRONTEND_HOST != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy over SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          HOST: ${{ vars.DEPLOY_FRONTEND_HOST }}
+          USER: ${{ vars.DEPLOY_FRONTEND_USER || vars.DEPLOY_BACKEND_USER }}
+          ROOT: ${{ vars.DEPLOY_CHALLENGE_ROOT }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SSH_KEY:-}" ] || [ -z "${HOST:-}" ] || [ -z "${USER:-}" ] || [ -z "${ROOT:-}" ]; then
+            echo "::error::Faltan secret o variables para desplegar el frontend."
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new \
+            "${USER}@${HOST}" \
+            "export CHALLENGE_ROOT=$(printf '%q' "$ROOT") DEPLOY_BRANCH=$(printf '%q' "$BRANCH"); bash -s" \
+            < scripts/ec2/deploy-frontend.sh
