@@ -480,6 +480,27 @@
   ```
 - El **frontend Nuxt** sigue en el host: `cd frontend && npm run dev`, con `NUXT_PUBLIC_API_BASE=http://127.0.0.1:8000` y Reverb en `127.0.0.1:8081` (mismas claves `REVERB_APP_KEY` que en Compose / `.env.compose`).
 
+### Frontend en producción (Nuxt build + PM2)
+
+- Archivo de proceso: `frontend/ecosystem.config.cjs` (puerto **3000**, `NITRO_HOST=0.0.0.0`). Requiere **`nuxt build`** previo; `.output` no se commitea (está en `.gitignore`).
+- **Variables** `NUXT_PUBLIC_*` (API Laravel, Reverb): definilas antes del build en `frontend/.env` o con `export`; quedan embebidas en el bundle cliente. Tras cambiarlas, volvé a ejecutar `nuxt build`.
+- **SproutKit**: el paquete `vendor/sproutkit-vue` no está en el repo; copiarlo en el servidor como en desarrollo (o usar el stub de CI solo si aplica).
+- En el servidor (con Node 22 y PM2 global: `sudo npm install -g pm2`):
+
+  ```bash
+  cd frontend
+  npm ci # o npm install si el lockfile no coincide en esa máquina
+  npx nuxt build
+  pm2 start ecosystem.config.cjs
+  pm2 save
+  pm2 startup
+  # Ejecutar el comando `sudo env PATH=...` que imprima `pm2 startup`, luego:
+  pm2 save
+  ```
+
+- Tras un **nuevo deploy** del código o del build: `pm2 restart nuxt-front` o `npm run pm2:reload` (desde `frontend/`).
+- En la nube, abrir el **security group** al **TCP 3000** (o poner un reverse proxy en 80/443). El backend y Reverb deben ser alcanzables desde el navegador y desde el servidor Nitro según la URL configurada en `NUXT_PUBLIC_API_BASE` y `NUXT_PUBLIC_REVERB_*`.
+
 ---
 
 > A partir de este punto, cada cambio nuevo se ira registrando aqui (incluida esta bitácora: **actualizar el README con cada tarea o entrega relevante**).
