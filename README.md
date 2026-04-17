@@ -487,7 +487,7 @@ El workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) corre **tests
 **Scripts en el repo** (se envían al servidor vía SSH y se ejecutan ahí):
 
 - [`scripts/ec2/deploy-backend.sh`](scripts/ec2/deploy-backend.sh): `git fetch/checkout/reset` en `DEPLOY_CHALLENGE_ROOT`, `composer install` (imagen `composer:2`), `docker build`, recrea **challenge-api**, **challenge-queue** y **challenge-reverb** (mismos puertos que el despliegue manual: **8000** y **8081**). No usa `git clean` para no borrar `.env` u otros archivos no versionados.
-- [`scripts/ec2/deploy-frontend.sh`](scripts/ec2/deploy-frontend.sh): mismo `git` en la raíz del repo, luego `npm ci`, `nuxt build` y `npm run pm2:reload` en `frontend/`.
+- [`scripts/ec2/deploy-frontend.sh`](scripts/ec2/deploy-frontend.sh): mismo `git` en la raíz del repo, luego `npm install` (misma idea que el job de CI; evita fallar si el lockfile no está perfectamente alineado), `nuxt build` y `npm run pm2:reload` en `frontend/`.
 
 **Configuración en GitHub** (Settings → Secrets and variables → Actions):
 

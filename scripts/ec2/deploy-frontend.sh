@@ -12,6 +12,7 @@ git checkout "$BRANCH"
 git reset --hard "origin/$BRANCH"
 
 cd "$ROOT/frontend"
-npm ci
+# npm ci falla si package-lock.json no está alineado con package.json; el CI usa npm install.
+npm install --no-audit --no-fund
 npm run build
 npm run pm2:reload
