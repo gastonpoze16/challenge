@@ -480,6 +480,14 @@
   ```
 - El **frontend Nuxt** sigue en el host: `cd frontend && npm run dev`, con `NUXT_PUBLIC_API_BASE=http://127.0.0.1:8000` y Reverb en `127.0.0.1:8081` (mismas claves `REVERB_APP_KEY` que en Compose / `.env.compose`).
 
+### Datadog (solo backend: APM y logs)
+
+- **APM (PHP / Laravel):** la imagen `backend/Dockerfile` instala **dd-trace-php**. Configurá en `backend/.env` las variables `DD_*` (ver `backend/.env.example`): `DD_TRACE_ENABLED`, `DD_SERVICE`, `DD_ENV`, `DD_VERSION`, `DD_LOGS_INJECTION`, `DD_TRACE_CLI_ENABLED`, `DD_AGENT_HOST`, `DD_TRACE_AGENT_URL`, `DD_SITE` (p. ej. `us5.datadoghq.com`). El `docker-entrypoint.sh` exporta al proceso las claves `DD_*` del `.env` para que el tracer las vea al arrancar PHP.
+- **Agent:** instalá el [Datadog Agent](https://docs.datadoghq.com/agent/) en el **host** (p. ej. EC2 con Linux). Desde los contenedores Laravel, `DD_AGENT_HOST` debe apuntar a donde el Agent escucha (p. ej. IP del bridge Docker `172.17.0.1` o la del host según tu red). Tras un **rebuild** de la imagen backend, las trazas pueden enviarse al Agent.
+- **Logs:** canal Monolog `stderr_json` en `config/logging.php`; podés usar `LOG_STACK=single,stderr_json` para JSON en stderr. Con `DD_LOGS_INJECTION=true` y APM activo, los logs se correlacionan con trazas si el Agent recoge esos logs.
+- **CI:** PHPUnit corre con `DD_TRACE_ENABLED=false` (no hay extensión en el runner).
+- **Dashboards:** en Datadog, **APM → Services** (filtrá por el `DD_SERVICE` que definiste) o plantillas **APM** en **Dashboards**.
+
 ### CI/CD (GitHub Actions → EC2)
 
 El workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) corre **tests** (backend + frontend) en cada push y PR a **`main`** o **`master`**. Tras un **push** a esas ramas, si el CI pasa, se ejecutan los jobs de despliegue por **SSH**.

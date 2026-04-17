@@ -2,6 +2,22 @@
 set -e
 cd /var/www/html
 
+# Datadog PHP tracer lee variables de entorno del proceso; exportar DD_* desde .env.
+if [ -f .env ]; then
+  while IFS= read -r _line || [ -n "$_line" ]; do
+    _line=$(printf '%s' "$_line" | tr -d '\r')
+    case "$_line" in
+      ''|'#'*) continue ;;
+      DD_*=*)
+        _k="${_line%%=*}"
+        _v="${_line#*=}"
+        _v=$(printf '%s' "$_v" | sed "s/^[\"']//;s/[\"']$//")
+        export "$_k=$_v"
+        ;;
+    esac
+  done < .env
+fi
+
 if [ ! -f vendor/autoload.php ]; then
   echo "[docker] Installing Composer dependencies..."
   composer install --no-interaction --prefer-dist
