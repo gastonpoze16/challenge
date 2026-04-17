@@ -480,6 +480,32 @@
   ```
 - El **frontend Nuxt** sigue en el host: `cd frontend && npm run dev`, con `NUXT_PUBLIC_API_BASE=http://127.0.0.1:8000` y Reverb en `127.0.0.1:8081` (mismas claves `REVERB_APP_KEY` que en Compose / `.env.compose`).
 
+### CI/CD (GitHub Actions → EC2)
+
+El workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) corre **tests** (backend + frontend) en cada push y PR a **`main`** o **`master`**. Tras un **push** a esas ramas, si el CI pasa, se ejecutan los jobs de despliegue por **SSH**.
+
+**Scripts en el repo** (se envían al servidor vía SSH y se ejecutan ahí):
+
+- [`scripts/ec2/deploy-backend.sh`](scripts/ec2/deploy-backend.sh): `git fetch/checkout/reset` en `DEPLOY_CHALLENGE_ROOT`, `composer install` (imagen `composer:2`), `docker build`, recrea **challenge-api**, **challenge-queue** y **challenge-reverb** (mismos puertos que el despliegue manual: **8000** y **8081**). No usa `git clean` para no borrar `.env` u otros archivos no versionados.
+- [`scripts/ec2/deploy-frontend.sh`](scripts/ec2/deploy-frontend.sh): mismo `git` en la raíz del repo, luego `npm ci`, `nuxt build` y `npm run pm2:reload` en `frontend/`.
+
+**Configuración en GitHub** (Settings → Secrets and variables → Actions):
+
+| Tipo | Nombre | Contenido |
+|------|--------|-----------|
+| **Secret** | `DEPLOY_SSH_PRIVATE_KEY` | Clave **privada** completa (por ejemplo el `.pem` de AWS o `id_ed25519`), misma que usás para `ssh` al EC2. |
+| **Variable** | `DEPLOY_BACKEND_HOST` | Host o IP pública del EC2 del API (Docker). |
+| **Variable** | `DEPLOY_BACKEND_USER` | Usuario SSH (p. ej. `ec2-user`). |
+| **Variable** | `DEPLOY_CHALLENGE_ROOT` | Ruta absoluta del clon del monorepo en el servidor (p. ej. `/home/ec2-user/challenge`). |
+| **Variable** | `DEPLOY_FRONTEND_HOST` | *(Opcional)* EC2 del Nuxt/PM2. Si está vacío o no existe, no se ejecuta el deploy del frontend. |
+| **Variable** | `DEPLOY_FRONTEND_USER` | *(Opcional)* Usuario SSH del front; si falta, se usa `DEPLOY_BACKEND_USER`. |
+
+Si faltan el secret o las variables obligatorias del backend, el job **Deploy backend** termina con aviso y **no falla** el workflow (para poder usar CI sin CD hasta configurar todo).
+
+**En cada EC2** debe existir: el repo clonado en `DEPLOY_CHALLENGE_ROOT`, `backend/.env` (y en el de front lo necesario para el build), el usuario con permiso para **`docker`** (grupo `docker` o equivalente), y en el de front **Node**, **npm** y **PM2**. Si ya entrás con el `.pem` al servidor, la clave pública suele estar ya en `authorized_keys`.
+
+**Probar** el pipeline: push a `main`/`master` o en Actions → último workflow **CI** → **Re-run all jobs**.
+
 ### Frontend en producción (Nuxt build + PM2)
 
 - Archivo de proceso: `frontend/ecosystem.config.cjs` (puerto **3000**, `NITRO_HOST=0.0.0.0`). Requiere **`nuxt build`** previo; `.output` no se commitea (está en `.gitignore`).
@@ -498,7 +524,7 @@
   pm2 save
   ```
 
-- Tras un **nuevo deploy** del código o del build: `pm2 restart nuxt-front` o `npm run pm2:reload` (desde `frontend/`).
+- Tras un **nuevo deploy** del código o del build: `pm2 restart nuxt-front` o `npm run pm2:reload` (desde `frontend/`). Con **CI/CD** y variable `DEPLOY_FRONTEND_HOST` definida, eso lo hace el script `scripts/ec2/deploy-frontend.sh` en cada push exitoso.
 - En la nube, abrir el **security group** al **TCP 3000** (o poner un reverse proxy en 80/443). El backend y Reverb deben ser alcanzables desde el navegador y desde el servidor Nitro según la URL configurada en `NUXT_PUBLIC_API_BASE` y `NUXT_PUBLIC_REVERB_*`.
 
 ---
