@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, master, staging]
+    branches: [main, staging]
   pull_request:
-    branches: [main, master, staging]
+    branches: [main, staging]
 
 jobs:
   backend:
@@ -73,7 +73,7 @@ jobs:
   deploy-backend-production:
     name: Deploy backend — production (EC2)
     needs: [backend, frontend]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment: production
     runs-on: ubuntu-latest
     steps:
@@ -132,13 +132,14 @@ jobs:
             "export CHALLENGE_ROOT=$(printf '%q' "$ROOT") DEPLOY_BRANCH=$(printf '%q' "$BRANCH"); bash -s" \
             < scripts/ec2/deploy-backend.sh
 
+  # No uses vars.DEPLOY_FRONTEND_HOST en el `if`: las variables solo en Environment
+  # no forman parte de `vars` al evaluar el job, y el deploy quedaría skipped por error.
   deploy-frontend-production:
     name: Deploy frontend — production (EC2)
     needs: [backend, frontend]
     if: >
       github.event_name == 'push'
-      && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-      && vars.DEPLOY_FRONTEND_HOST != ''
+      && github.ref == 'refs/heads/main'
     environment: production
     runs-on: ubuntu-latest
     steps:
@@ -172,7 +173,6 @@ jobs:
     if: >
       github.event_name == 'push'
       && github.ref == 'refs/heads/staging'
-      && vars.DEPLOY_FRONTEND_HOST != ''
     environment: staging
     runs-on: ubuntu-latest
     steps:

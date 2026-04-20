@@ -25,10 +25,10 @@ Workflow: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
 
 | Job | Cuándo |
 |-----|--------|
-| Tests backend (PHPUnit) | Push / PR a `main`, `master`, `staging` |
+| Tests backend (PHPUnit) | Push / PR a `main`, `staging` |
 | Tests frontend (Vitest) | Igual |
-| Deploy backend | Push a `main`/`master` → entorno **production**; push a `staging` → entorno **staging** |
-| Deploy frontend | Misma regla, si `DEPLOY_FRONTEND_HOST` está definido en ese entorno |
+| Deploy backend | Push a `main` → entorno **production**; push a `staging` → entorno **staging** |
+| Deploy frontend | Misma rama/entorno que arriba; requiere `DEPLOY_FRONTEND_HOST` (y el resto) disponibles **en el paso** vía `vars` del Environment. **No** se condiciona el job con `if: vars.DEPLOY_FRONTEND_HOST != ''`: GitHub **no** incluye variables solo de Environment en ese `if`, y el job se marcaba como skipped incorrectamente. |
 
 Los scripts de despliegue: [`scripts/ec2/deploy-backend.sh`](../scripts/ec2/deploy-backend.sh), [`scripts/ec2/deploy-frontend.sh`](../scripts/ec2/deploy-frontend.sh).
 
@@ -40,7 +40,7 @@ Modelo recomendado: **tres capas lógicas**, misma base de código, **URLs y sec
 |---------|------------|----------------------|
 | **dev** | Máquina local (`docker compose`, `npm run dev`) | No hay deploy automático desde GitHub |
 | **staging** | Rama `staging`, datos de prueba | Job de deploy con **GitHub Environment** `staging` |
-| **prod** | Rama `main` o `master` | Job de deploy con **GitHub Environment** `production` |
+| **prod** | Rama `main` | Job de deploy con **GitHub Environment** `production` |
 
 ### Configuración en GitHub
 

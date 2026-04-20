@@ -6,7 +6,7 @@
 
 #### DevOps (documentación y entornos)
 - Añadido [`docs/DEVOPS.md`](docs/DEVOPS.md): Docker, CI/CD, entornos **dev / staging / prod**, Datadog, health checks.
-- Workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml): deploy backend/front a **production** (`main`/`master`) y **staging** (`staging`) con **GitHub Environments** para variables por instancia.
+- Workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml): deploy backend/front a **production** (`main`) y **staging** (`staging`) con **GitHub Environments** para variables por instancia.
 - No se versionan plantillas bajo `docker/env/`; la config por entorno va en `backend/.env`, `.env.compose` y/o variables de GitHub.
 
 ### 2026-04-08
@@ -508,7 +508,7 @@ En **Docker Compose**, cada servicio tiene `healthcheck` donde aplica: **app** (
 
 Guía consolidada (Docker, entornos **dev / staging / prod**, Datadog, health): **[`docs/DEVOPS.md`](docs/DEVOPS.md)**.
 
-El workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) corre **tests** en push/PR a **`main`**, **`master`** o **`staging`**. Los despliegues usan **GitHub Environments** `production` (ramas `main`/`master`) y `staging` (rama `staging`), con variables por entorno (hosts distintos). Tras un **push** exitoso, los jobs de despliegue por **SSH** ejecutan los scripts en `scripts/ec2/`.
+El workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) corre **tests** en push/PR a **`main`** o **`staging`**. Los despliegues usan **GitHub Environments** `production` (rama `main`) y `staging` (rama `staging`), con variables por entorno (hosts distintos). Tras un **push** exitoso, los jobs de despliegue por **SSH** ejecutan los scripts en `scripts/ec2/`.
 
 **Scripts en el repo** (se envían al servidor vía SSH y se ejecutan ahí):
 
@@ -523,14 +523,14 @@ El workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) corre **tests
 | **Variable** | `DEPLOY_BACKEND_HOST` | Host o IP pública del EC2 del API (Docker). |
 | **Variable** | `DEPLOY_BACKEND_USER` | Usuario SSH (p. ej. `ec2-user`). |
 | **Variable** | `DEPLOY_CHALLENGE_ROOT` | Ruta absoluta del clon del monorepo en el servidor (p. ej. `/home/ec2-user/challenge`). |
-| **Variable** | `DEPLOY_FRONTEND_HOST` | *(Opcional)* EC2 del Nuxt/PM2. Si está vacío o no existe, no se ejecuta el deploy del frontend. |
+| **Variable** | `DEPLOY_FRONTEND_HOST` | Host del Nuxt/PM2. Definilo en el **Environment** `production`/`staging` o a nivel de repositorio (en ambos si querés). **Nota:** no podés condicionar el *job* con `vars.DEPLOY_FRONTEND_HOST` si la variable vive solo en un Environment: GitHub no expone esas `vars` en el `if` del job, y el deploy del front se *skipeaba* por error; el workflow ya no usa ese `if` y valida en el paso SSH. |
 | **Variable** | `DEPLOY_FRONTEND_USER` | *(Opcional)* Usuario SSH del front; si falta, se usa `DEPLOY_BACKEND_USER`. |
 
 Definí las mismas variables en **Settings → Environments** (`production` / `staging`) con valores distintos si cada entorno tiene su EC2; si solo usás repositorio, los deploys siguen funcionando. Si faltan el secret o las variables obligatorias del backend, el job de deploy backend termina con aviso y **no falla** el workflow (para poder usar CI sin CD hasta configurar todo).
 
 **En cada EC2** debe existir: el repo clonado en `DEPLOY_CHALLENGE_ROOT`, `backend/.env` (y en el de front lo necesario para el build), el usuario con permiso para **`docker`** (grupo `docker` o equivalente), y en el de front **Node**, **npm** y **PM2**. Si ya entrás con el `.pem` al servidor, la clave pública suele estar ya en `authorized_keys`.
 
-**Probar** el pipeline: push a `main`/`master` o en Actions → último workflow **CI** → **Re-run all jobs**.
+**Probar** el pipeline: push a `main` o en Actions → último workflow **CI** → **Re-run all jobs**.
 
 ### Frontend en producción (Nuxt build + PM2)
 
