@@ -7,7 +7,14 @@ use App\Http\Controllers\Api\Payments\PaymentEventTypeController;
 use App\Http\Controllers\Api\Payments\PaymentExportController;
 use App\Http\Controllers\Api\Payments\PaymentMetricsController;
 use App\Http\Controllers\Api\Webhooks\PaymentWebhookController;
+use App\Http\Controllers\HealthController;
 use Illuminate\Support\Facades\Route;
+
+/*
+| Readiness: BD + app. Para balanceadores / Datadog HTTP check / orquestación Docker.
+| Liveness ligero del framework: GET /up (bootstrap/app.php).
+*/
+Route::get('/health', HealthController::class);
 
 Route::post('/webhooks/payment', [PaymentWebhookController::class, 'store'])
     ->middleware('throttle:webhook');

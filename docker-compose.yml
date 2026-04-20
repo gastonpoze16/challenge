@@ -71,6 +71,12 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/up"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
     command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
 
   queue:
@@ -88,7 +94,13 @@ services:
       mysql:
         condition: service_healthy
       app:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "php", "artisan", "db:show"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     command: ["php", "artisan", "queue:work", "--sleep=1", "--tries=3", "--timeout=120"]
 
   reverb:
@@ -108,7 +120,13 @@ services:
       mysql:
         condition: service_healthy
       app:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "8081"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8081"]
 
   frontend:
@@ -133,7 +151,19 @@ services:
       - ./frontend:/app
     depends_on:
       app:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
 
 volumes:
   challenge_mysql_data:

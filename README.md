@@ -480,6 +480,15 @@
   ```
 - El **frontend Nuxt** sigue en el host: `cd frontend && npm run dev`, con `NUXT_PUBLIC_API_BASE=http://127.0.0.1:8000` y Reverb en `127.0.0.1:8081` (mismas claves `REVERB_APP_KEY` que en Compose / `.env.compose`).
 
+#### Health checks
+
+| Tipo | Ruta | Uso |
+|------|------|-----|
+| **Liveness** | `GET /up` | Laravel (sin BD); responde si la app arrancó. Usado por **`HEALTHCHECK`** en `backend/Dockerfile` y por Compose en el servicio **app**. |
+| **Readiness** | `GET /health` | JSON con comprobación de **conexión a la BD** (`200` ok / `503` si falla). Para balanceadores de carga, **Datadog Synthetic API** o monitores HTTP. |
+
+En **Docker Compose**, cada servicio tiene `healthcheck` donde aplica: **app** (`curl` a `/up`), **queue** (`php artisan db:show`), **reverb** (`nc` al puerto **8081**), **frontend** (HTTP al **3000**). **queue** y **reverb** esperan a que **app** esté **healthy**. En **EC2** (`docker ps`) la imagen del API muestra estado **healthy** si `/up` responde.
+
 ### Datadog (solo backend: APM y logs)
 
 - **APM (PHP / Laravel):** la imagen `backend/Dockerfile` instala **dd-trace-php**. Configurá en `backend/.env` las variables `DD_*` (ver `backend/.env.example`): `DD_TRACE_ENABLED`, `DD_SERVICE`, `DD_ENV`, `DD_VERSION`, `DD_LOGS_INJECTION`, `DD_TRACE_CLI_ENABLED`, `DD_AGENT_HOST`, `DD_TRACE_AGENT_URL`, `DD_SITE` (p. ej. `us5.datadoghq.com`). El `docker-entrypoint.sh` exporta al proceso las claves `DD_*` del `.env` para que el tracer las vea al arrancar PHP.

@@ -25,3 +25,7 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+
+# Liveness para orquestadores / `docker ps` (misma ruta que en docker-compose).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=5 \
+  CMD curl -fsS http://127.0.0.1:8000/up >/dev/null || exit 1
