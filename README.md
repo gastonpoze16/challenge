@@ -2,6 +2,13 @@
 
 ## Bitacora de trabajo
 
+### 2026-04-14
+
+#### DevOps (documentación y entornos)
+- Añadido [`docs/DEVOPS.md`](docs/DEVOPS.md): Docker, CI/CD, entornos **dev / staging / prod**, Datadog, health checks.
+- Workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml): deploy backend/front a **production** (`main`/`master`) y **staging** (`staging`) con **GitHub Environments** para variables por instancia.
+- No se versionan plantillas bajo `docker/env/`; la config por entorno va en `backend/.env`, `.env.compose` y/o variables de GitHub.
+
 ### 2026-04-08
 
 #### Paso 1 - Estructura inicial del repositorio
@@ -499,7 +506,9 @@ En **Docker Compose**, cada servicio tiene `healthcheck` donde aplica: **app** (
 
 ### CI/CD (GitHub Actions → EC2)
 
-El workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) corre **tests** (backend + frontend) en cada push y PR a **`main`** o **`master`**. Tras un **push** a esas ramas, si el CI pasa, se ejecutan los jobs de despliegue por **SSH**.
+Guía consolidada (Docker, entornos **dev / staging / prod**, Datadog, health): **[`docs/DEVOPS.md`](docs/DEVOPS.md)**.
+
+El workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) corre **tests** en push/PR a **`main`**, **`master`** o **`staging`**. Los despliegues usan **GitHub Environments** `production` (ramas `main`/`master`) y `staging` (rama `staging`), con variables por entorno (hosts distintos). Tras un **push** exitoso, los jobs de despliegue por **SSH** ejecutan los scripts en `scripts/ec2/`.
 
 **Scripts en el repo** (se envían al servidor vía SSH y se ejecutan ahí):
 
@@ -517,7 +526,7 @@ El workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) corre **tests
 | **Variable** | `DEPLOY_FRONTEND_HOST` | *(Opcional)* EC2 del Nuxt/PM2. Si está vacío o no existe, no se ejecuta el deploy del frontend. |
 | **Variable** | `DEPLOY_FRONTEND_USER` | *(Opcional)* Usuario SSH del front; si falta, se usa `DEPLOY_BACKEND_USER`. |
 
-Si faltan el secret o las variables obligatorias del backend, el job **Deploy backend** termina con aviso y **no falla** el workflow (para poder usar CI sin CD hasta configurar todo).
+Definí las mismas variables en **Settings → Environments** (`production` / `staging`) con valores distintos si cada entorno tiene su EC2; si solo usás repositorio, los deploys siguen funcionando. Si faltan el secret o las variables obligatorias del backend, el job de deploy backend termina con aviso y **no falla** el workflow (para poder usar CI sin CD hasta configurar todo).
 
 **En cada EC2** debe existir: el repo clonado en `DEPLOY_CHALLENGE_ROOT`, `backend/.env` (y en el de front lo necesario para el build), el usuario con permiso para **`docker`** (grupo `docker` o equivalente), y en el de front **Node**, **npm** y **PM2**. Si ya entrás con el `.pem` al servidor, la clave pública suele estar ya en `authorized_keys`.
 
