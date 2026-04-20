@@ -21,16 +21,13 @@ La configuración por entorno (dev / staging / prod) definila en **`backend/.env
 
 ## 2. CI/CD (GitHub Actions)
 
-Workflow: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
-
-| Job | Cuándo |
-|-----|--------|
-| Tests backend (PHPUnit) | Push / PR a `main`, `staging` |
-| Tests frontend (Vitest) | Igual |
-| Deploy backend | Push a `main` → entorno **production**; push a `staging` → entorno **staging** |
-| Deploy frontend | Misma rama/entorno que arriba; requiere `DEPLOY_FRONTEND_HOST` (y el resto) disponibles **en el paso** vía `vars` del Environment. **No** se condiciona el job con `if: vars.DEPLOY_FRONTEND_HOST != ''`: GitHub **no** incluye variables solo de Environment en ese `if`, y el job se marcaba como skipped incorrectamente. |
+| Archivo | Rol |
+|---------|-----|
+| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | Tests + deploy EC2 en el mismo workflow. Deploy solo en **push** a `main` o `staging`, con jobs filtrados por `github.ref` (los de la otra rama aparecen *skipped*). |
 
 Los scripts de despliegue: [`scripts/ec2/deploy-backend.sh`](../scripts/ec2/deploy-backend.sh), [`scripts/ec2/deploy-frontend.sh`](../scripts/ec2/deploy-frontend.sh).
+
+**Variables solo en Environment:** no uses `vars.DEPLOY_*` en un `if` a **nivel de job** si la variable está solo en el Environment.
 
 ## 3. Entornos separados (dev / staging / prod)
 

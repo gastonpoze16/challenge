@@ -132,14 +132,10 @@ jobs:
             "export CHALLENGE_ROOT=$(printf '%q' "$ROOT") DEPLOY_BRANCH=$(printf '%q' "$BRANCH"); bash -s" \
             < scripts/ec2/deploy-backend.sh
 
-  # No uses vars.DEPLOY_FRONTEND_HOST en el `if`: las variables solo en Environment
-  # no forman parte de `vars` al evaluar el job, y el deploy quedaría skipped por error.
   deploy-frontend-production:
     name: Deploy frontend — production (EC2)
     needs: [backend, frontend]
-    if: >
-      github.event_name == 'push'
-      && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment: production
     runs-on: ubuntu-latest
     steps:
@@ -170,9 +166,7 @@ jobs:
   deploy-frontend-staging:
     name: Deploy frontend — staging (EC2)
     needs: [backend, frontend]
-    if: >
-      github.event_name == 'push'
-      && github.ref == 'refs/heads/staging'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
     environment: staging
     runs-on: ubuntu-latest
     steps:
