@@ -15,4 +15,9 @@ cd "$ROOT/frontend"
 # npm ci falla si package-lock.json no está alineado con package.json; el CI usa npm install.
 npm install --no-audit --no-fund
 npm run build
-npm run pm2:reload
+# Primera vez: no existe el proceso; las siguientes: reload sin downtime.
+if pm2 show nuxt-front >/dev/null 2>&1; then
+  npm run pm2:reload
+else
+  npm run pm2:start
+fi
